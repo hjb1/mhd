@@ -20,12 +20,14 @@ Body styles
 */
 body {
     font-family: "MS Sans Serif",Tahoma,Verdana,Segoe,sans-serif; 
+    /*
     background: teal;
     color: white;
+    */
     padding-bottom: 28px;
 }
 .bg-cloud{
-    background-image: url(clouds2.jpg);
+    background-image: url(assets/clouds2.jpg);
     color:#212529;
 }
 
@@ -85,7 +87,7 @@ Scrollbar (only chrome & safari)
 }
 ::-webkit-scrollbar-button:vertical:increment {
     width: 18px;
-    background: silver url(combo.png) no-repeat 50%;
+    background: silver url(assets/combo.png) no-repeat 50%;
     height: 18px;
     margin: 1px 1px 1px 10px;
     -webkit-transform: rotateX(-90deg);
@@ -93,24 +95,24 @@ Scrollbar (only chrome & safari)
     -webkit-transform: rotateY(-90deg);
     transform: rotateY(-90deg);
     border: 1px outset #fff;
-    border-shadow: 1px 1px #000;
+    box-shadow: 1px 1px #000;
 }
 ::-webkit-scrollbar-button:vertical:decrement {
     width: 11px;
-    background: silver url(comboup.png) no-repeat 50%;
+    background: silver url(assets/comboup.png) no-repeat 50%;
     height: 16px;
     margin: 1px 1px 1px 10px;
     transform: rotateX(180deg);
     -webkit-transform: rotateY(180deg);
     border: 1px outset #fff;
-    border-shadow: 1px 1px #000
+    box-shadow: 1px 1px #000
 }
 ::-webkit-scrollbar-track{
-    background-image: url(background.bmp)
+    background-image: url(assets/background.bmp)
 }
 ::-webkit-scrollbar-thumb:vertical {
     border: 1px outset #fff;
-    border-shadow: 1px 1px #000;
+    box-shadow: 1px 1px #000;
     height: 40px;
     background-color: silver
 }
@@ -124,7 +126,7 @@ Scrollbar (only chrome & safari)
     display: none
 }
 ::-webkit-scrollbar-button:horizontal:increment {
-    background: silver url(comboright.png) no-repeat 50%;
+    background: silver url(assets/comboright.png) no-repeat 50%;
     -webkit-transform: rotateX(-90deg);
     transform: rotateX(-90deg);
     -webkit-transform: rotateY(-90deg);
@@ -135,10 +137,10 @@ Scrollbar (only chrome & safari)
     height: 18px;
     margin: 1px 1px 1px 10px;
     border: 1px outset #fff;
-    border-shadow: 1px 1px #000
+    box-shadow: 1px 1px #000
 }
 ::-webkit-scrollbar-button:horizontal:decrement {
-    background: silver url(comboleft.png) no-repeat 50%;
+    background: silver url(assets/comboleft.png) no-repeat 50%;
     transform: rotateX(180deg);
     -webkit-transform: rotateY(180deg)
 }
@@ -147,7 +149,7 @@ Scrollbar (only chrome & safari)
 }
 ::-webkit-scrollbar-thumb:horizontal {
     border: 1px outset #fff;
-    border-shadow: 1px 1px #000;
+    box-shadow: 1px 1px #000;
     height: 40px;
     background-color: silver
 }
@@ -180,14 +182,14 @@ Scrollbar (only chrome & safari)
     color: #424242;
     box-shadow: -1px -1px #000 !important;
     outline: 0 !important;
-    background: url(background.bmp);
+    background: url(assets/background.bmp);
 }
 .btn:active {
     border: 2px inset #fff !important;
     color: #424242;
     box-shadow: -1px -1px #000 !important;
     outline: 0 !important;
-    background: url(background.bmp);
+    background: url(assets/background.bmp);
 }
 
 .btn-primary{
@@ -326,11 +328,11 @@ NAVBAR
 }
 .navbar-light .navbar-toggler.collapsed .navbar-toggler-icon {
     width: 32px;
-    background: url(icons/directory_closed_cool-5.png);
+    background: url(assets/icons/directory_closed_cool-5.png);
 }
 .navbar-light .navbar-toggler .navbar-toggler-icon {
     width: 32px;
-    background: url(icons/directory_open_cool-5.png);
+    background: url(assets/icons/directory_open_cool-5.png);
 }
 .navbar-toggler{
     width: auto;
