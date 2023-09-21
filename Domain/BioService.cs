@@ -14,12 +14,12 @@ public class BioService: IBioService
     public BioService(IDbContextFactory<DatabaseContext> factory) =>
         this.factory = factory;
 
-    public async Task<Bio> LoadDocumentAsync(string PerIdentification)
+    public async Task<Bio> LoadDocumentAsync(string perIdentification)
         {
             using var context = factory.CreateDbContext();
             return await context.Bio
-                    .WithPartitionKey(PerIdentification)
-                    .SingleOrDefaultAsync(d => d.PerIdentification == PerIdentification);
+                    .WithPartitionKey(perIdentification)
+                    .SingleOrDefaultAsync(d => d.perIdentification == perIdentification);
         }
 
     public async Task<List<BioSummary>> QueryDocumentAsync(

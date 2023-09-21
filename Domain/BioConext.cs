@@ -14,7 +14,7 @@ public sealed class DatabaseContext : DbContext
     public DatabaseContext(DbContextOptions<DatabaseContext> options)
         : base(options) 
         {}
-    public DbSet<Bio> Bio { get; set; } = null;
+    public DbSet<Bio> Bio { get; set; }
     public static string ComputePartitionKey<T>()
             where T : class, IBioSummary => typeof(T).FullName;
     
@@ -28,7 +28,7 @@ public sealed class DatabaseContext : DbContext
         var BioModel = modelBuilder.Entity<Bio>();
 
         BioModel.ToContainer(nameof(Bio)).HasNoDiscriminator();
-        BioModel.HasPartitionKey(d => d.PerIdentification);
+        BioModel.HasPartitionKey(d => d.perIdentification);
 
         base.OnModelCreating(modelBuilder);
     }
