@@ -1,14 +1,37 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.EntityFrameworkCore;
+
 using mhd.Data;
+using mhd.Bio;
+using Microsoft.Extensions.Options;
+using mhd;
+using Azure.Core;
+using Azure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
+
+
 
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddSignalR().AddAzureSignalR();
 builder.Services.AddSingleton<WeatherForecastService>();
+
+builder.Services.AddDbContextFactory<DatabaseContext>(
+    (IServiceProvider sp, DbContextOptionsBuilder opts) =>
+    {
+        var cosmosSettings = sp;
+
+        opts.UseCosmos(
+            accountEndpoint: Environment.GetEnvironmentVariable("COSMOS_ENDPOINT", EnvironmentVariableTarget.Process),
+            tokenCredential: new DefaultAzureCredential(),
+            databaseName: Environment.GetEnvironmentVariable("COSMOS_DATABASE", EnvironmentVariableTarget.Process)
+        );
+    }
+);
+builder.Services.AddScoped<IBioService, BioService>();
 
 var app = builder.Build();
 
