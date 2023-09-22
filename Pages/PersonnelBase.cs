@@ -1,19 +1,19 @@
 using System;
-using mhd.DataAccess;
-using mhd.Domain;
 using Microsoft.AspNetCore.Components;
+using mhd.Domain;
+using mhd.DataAccess;
 
 namespace mhd.Pages
 {
-    public class FetchBase : ComponentBase
+    public class PersonnelBase : ComponentBase
     {
         [Inject]
         protected IMHDService MHDService { get; set; }
-        protected List<BioSummary> BiosList { get; set; } = null;
+        protected List<PersonnelSummary> PersonnelList { get; set; } = null;
         protected override async Task OnInitializedAsync()
         {
 
-            BiosList = await MHDService.QueryDocumentAsync();
+            PersonnelList = await MHDService.QueryPersonnelAsync();
 
         }
     }

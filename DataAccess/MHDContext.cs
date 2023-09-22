@@ -3,9 +3,9 @@ using Microsoft.Azure.Cosmos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using mhd;
-using mhd.Bio;
+using mhd.Domain;
 
-namespace mhd.Bio;
+namespace mhd.DataAccess;
 
 public sealed class DatabaseContext : DbContext
 {
@@ -30,6 +30,13 @@ public sealed class DatabaseContext : DbContext
         BioModel.ToContainer(nameof(Bio)).HasNoDiscriminator();
         BioModel.HasPartitionKey(d => d.perIdentification);
 
+        var PersonnelModel = modelBuilder.Entity<Personnel>();
+
+        PersonnelModel.ToContainer(nameof(Personnel)).HasNoDiscriminator();
+        PersonnelModel.HasPartitionKey(d => d.perIdentification);
+
         base.OnModelCreating(modelBuilder);
     }
+    public DbSet<Personnel> Personnel { get; set; }
+    
 }

@@ -3,11 +3,12 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.EntityFrameworkCore;
 
 using mhd.Data;
-using mhd.Bio;
+using mhd.DataAccess;
 using Microsoft.Extensions.Options;
 using mhd;
 using Azure.Core;
 using Azure.Identity;
+using mhd.Domain;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,7 +32,7 @@ builder.Services.AddDbContextFactory<DatabaseContext>(
         );
     }
 );
-builder.Services.AddScoped<IBioService, BioService>();
+builder.Services.AddScoped<IMHDService, MHDService>();
 
 var app = builder.Build();
 

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace mhd.Bio;
+namespace mhd.Domain;
 public class Bio
 {
     public string id { get; set; } = string.Empty;
@@ -153,11 +153,4 @@ public interface IBioSummary
 {
     List<BioSummary> Bio {get;}
    
-}
-public interface IBioService
-{
-     Task<List<BioSummary>> QueryDocumentAsync(
-    
-    );
-    Task<Bio> LoadDocumentAsync(string PerIdentification);
 }

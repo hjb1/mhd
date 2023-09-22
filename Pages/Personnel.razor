@@ -1,0 +1,37 @@
+﻿@page "/personnel"
+
+@inherits PersonnelBase
+
+<PageTitle>Personnel</PageTitle>
+
+<h1>Personnel</h1>
+
+<p>This component is grabbing a summary of Personnel Data.</p>
+
+@if (PersonnelList == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>PerIdentification</th>
+                <th>First Name</th>
+                <th>Last Name</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var Personnel in PersonnelList)
+            {
+                <tr>
+                    <td>@Personnel.PerIdentification</td>
+                    <td>@Personnel.FirstName</td>
+                    <td>@Personnel.LastName</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
