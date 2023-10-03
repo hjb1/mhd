@@ -33,7 +33,11 @@ public sealed class DatabaseContext : DbContext
         var PersonnelModel = modelBuilder.Entity<Personnel>();
 
         PersonnelModel.ToContainer(nameof(Personnel)).HasNoDiscriminator();
-        PersonnelModel.HasPartitionKey(d => d.perIdentification);
+        PersonnelModel.HasPartitionKey(d => d.perIdentification)
+            .HasOne(d => d.Bio)
+            .WithOne(b => b.Personnel)
+            .HasForeignKey<Bio>(b => b.perIdentification)
+            .HasPrincipalKey<Personnel>(d => d.perIdentification);
 
         base.OnModelCreating(modelBuilder);
     }

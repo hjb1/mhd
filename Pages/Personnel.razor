@@ -1,7 +1,12 @@
 ﻿@page "/personnel"
 
 @inherits PersonnelBase
-
+@inject IJSRuntime JSRuntime
+<script>
+    window.showBioModal = () => {
+        $('#bioModal').modal('show');
+    };
+</script>
 <PageTitle>Personnel</PageTitle>
 
 <h1>Personnel</h1>
@@ -14,12 +19,14 @@
 }
 else
 {
-    <table class="table">
+    <div class="sunken-panel">
+    <table class="interactive">
         <thead>
             <tr>
                 <th>PerIdentification</th>
                 <th>First Name</th>
                 <th>Last Name</th>
+                <th>Bio</th>
             </tr>
         </thead>
         <tbody>
@@ -29,9 +36,19 @@ else
                     <td>@Personnel.PerIdentification</td>
                     <td>@Personnel.FirstName</td>
                     <td>@Personnel.LastName</td>
+                    <td>
+                        @if (Personnel.HasBio)
+                        {
+                            <button type="button" class="btn btn-link" @onclick="() => ShowBioModal(Personnel)">View Bio</button>
+                        }
+                        else
+                        {
+                            <span>No Bio</span>
+                        }
+                    </td>
                 </tr>
             }
         </tbody>
     </table>
+     </div>
 }
-

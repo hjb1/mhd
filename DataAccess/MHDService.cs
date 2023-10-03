@@ -4,6 +4,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.Azure.Cosmos;
 using Microsoft.EntityFrameworkCore;
 using mhd.Domain;
+using Radzen;
+using System.ComponentModel.DataAnnotations;
 
 namespace mhd.DataAccess;
 
@@ -14,7 +16,7 @@ public class MHDService : IMHDService
     public MHDService(IDbContextFactory<DatabaseContext> factory) =>
         this.factory = factory;
 
-    public async Task<Bio> LoadDocumentAsync(string perIdentification)
+    public async Task<Bio> LoadBioAsync(string perIdentification)
         {
             using var context = factory.CreateDbContext();
             return await context.Bio
@@ -34,17 +36,29 @@ public class MHDService : IMHDService
 
         return documents.Select(d => new BioSummary(d)).OrderBy(ds => ds.PerIdentification).ToList();
     }
-    public async Task<List<PersonnelSummary>> QueryPersonnelAsync(
-
-    )
+    public async Task<List<PersonnelSummary>> QueryPersonnelAsync()
     {
         using var context = factory.CreateDbContext();
 
         var result = new HashSet<PersonnelSummary>();
+        bool HasBio = false;
 
-        var documents = await context.Personnel.ToListAsync();
+        var nonNullBios = await context.Bio
+            .Where(b => b.perIdentification != null)
+            .Select(b => b.perIdentification)
+            .Distinct()
+            .ToListAsync();
 
-        return documents.Select(d => new PersonnelSummary(d)).OrderBy(ds => ds.LastName).ToList();
+        var personnel = await context.Personnel.ToListAsync();
+        
+
+        return personnel.Select(d => 
+            {
+                bool hasBio = nonNullBios.Any(bioID => bioID == d.perIdentification);
+                return new PersonnelSummary(d, hasBio);
+            })
+            .OrderBy(ds => ds.LastName)
+            .ToList();
     }
-
+ 
 }

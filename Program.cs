@@ -1,14 +1,13 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.EntityFrameworkCore;
-
-using mhd.Data;
 using mhd.DataAccess;
 using Microsoft.Extensions.Options;
 using mhd;
 using Azure.Core;
 using Azure.Identity;
 using mhd.Domain;
+using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,7 +17,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 builder.Services.AddSignalR().AddAzureSignalR();
-builder.Services.AddSingleton<WeatherForecastService>();
 
 builder.Services.AddDbContextFactory<DatabaseContext>(
     (IServiceProvider sp, DbContextOptionsBuilder opts) =>
@@ -33,6 +31,7 @@ builder.Services.AddDbContextFactory<DatabaseContext>(
     }
 );
 builder.Services.AddScoped<IMHDService, MHDService>();
+builder.Services.AddRadzenComponents();
 
 var app = builder.Build();
 

@@ -21,7 +21,7 @@ Body styles
 body {
     font-family: "MS Sans Serif",Tahoma,Verdana,Segoe,sans-serif; 
     
-    background: teal;
+    background: teal !important;
     color: white;
     
     padding-bottom: 28px;
@@ -608,18 +608,43 @@ TODO: make it draggable;
 TABLES
 
 */
-.table{
-    background: white;
-    border-color: #c0c0c0;
-}
-.table-bordered{
-    border: 1px solid #c0c0c0;
-}
-.table-bordered td, .table-bordered th {
-    border: 1px solid #c0c0c0;
-}
-.table td, .table th {
-    padding: .75rem;
-    vertical-align: top;
-    border-top: 1px solid #c0c0c0;
-}
+.sunken-panel {
+    box-sizing: border-box;
+    border: 2px groove transparent;
+    border-image: svg-load("../assets/icon/sunken-panel-border.svg") 2;
+    overflow: auto;
+    background-color: #fff;
+  }
+
+table {
+    border-collapse: collapse;
+    position: relative;
+    text-align: left;
+    white-space: nowrap;
+    background-color: #fff;
+  }
+  
+  table > thead > tr > * {
+    position: sticky;
+    top: 0;
+    height: 17px;
+    box-shadow: var(--border-raised-outer), var(--border-raised-inner);
+    background: var(--surface);
+    box-sizing: border-box;
+    font-weight: normal;
+    padding: 0 var(--grouped-element-spacing);
+  }
+  
+  table.interactive > tbody > tr {
+    cursor: pointer;
+  }
+  
+  table > tbody > tr.highlighted {
+    color: #fff;
+    background-color: var(--dialog-blue);
+  }
+  
+  table > tbody > tr > * {
+    padding: 0 var(--grouped-element-spacing);
+    height: 14px;
+  }

@@ -4,8 +4,8 @@ using System.Collections.Generic;
 namespace mhd.Domain;
 public class Bio
 {
-    public string id { get; set; } = string.Empty;
-    public string perIdentification { get; set; } = string.Empty;
+    public string id { get; set; } 
+    public string perIdentification { get; set; } 
     public string LastName { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string Initial { get; set; } = string.Empty;
@@ -128,6 +128,7 @@ public class Bio
     public string bioOtherSquadrons { get; set; } = string.Empty;
     public string bioOtherGroups { get; set; } = string.Empty;
     public string BioDate { get; set; } = string.Empty;
+    public Personnel Personnel {get; set; }
 }
 
 public class BioSummary
@@ -140,13 +141,11 @@ public class BioSummary
     {
         Id = Bio.id;
         PerIdentification = Bio.perIdentification;
-        LastName = Bio.LastName;
-        FirstName = Bio.FirstName;
+        BioExists = Bio != null;
     }
     public string Id { get; set; } = string.Empty;
     public string PerIdentification { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
-    public string FirstName { get; set; } = string.Empty;
+    public bool BioExists { get; set; } = false;
 }
 
 public interface IBioSummary

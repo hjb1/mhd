@@ -24,6 +24,8 @@ public class Personnel
     public string perPOW { get; set; }
     public string perSquadron { get; set; }
     public string perWWIIAddress { get; set; }
+    public Bio Bio { get; set; }
+    public BioSummary BioSummary {get; set; }
 }
 
 public interface IPersonnelSummary
@@ -33,8 +35,8 @@ public interface IPersonnelSummary
 }
 public interface IPersonnelService
 {
-     Task<List<PersonnelSummary>> QueryDocumentAsync(
+     Task<List<PersonnelSummary>> QueryPersonnelAsync(
     
     );
-    Task<Personnel> LoadDocumentAsync(string PerIdentification);
+    Task<Personnel> LoadPersonnelAsync(string PerIdentification);
 }
