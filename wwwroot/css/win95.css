@@ -622,17 +622,18 @@ table {
     text-align: left;
     white-space: nowrap;
     background-color: #fff;
+    color: #222;
   }
   
   table > thead > tr > * {
     position: sticky;
     top: 0;
     height: 17px;
-    box-shadow: var(--border-raised-outer), var(--border-raised-inner);
-    background: var(--surface);
+    box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf;
+    background: silver;
     box-sizing: border-box;
     font-weight: normal;
-    padding: 0 var(--grouped-element-spacing);
+    padding: 0 6px;
   }
   
   table.interactive > tbody > tr {
@@ -640,11 +641,11 @@ table {
   }
   
   table > tbody > tr.highlighted {
-    color: #fff;
-    background-color: var(--dialog-blue);
+    background-color: navy;
+    color: #fff
   }
   
-  table > tbody > tr > * {
-    padding: 0 var(--grouped-element-spacing);
+  table>tbody>tr>* {
     height: 14px;
-  }
+    padding: 0 6px
+}
