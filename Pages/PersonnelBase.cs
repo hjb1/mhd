@@ -2,9 +2,9 @@ using System;
 using Microsoft.AspNetCore.Components;
 using mhd.Domain;
 using mhd.DataAccess;
-using Radzen.Blazor;
-using Radzen;
 using Microsoft.JSInterop;
+using mhd.Pages;
+using Blazorise;
 
 namespace mhd.Pages
 {
@@ -16,18 +16,28 @@ namespace mhd.Pages
         protected IJSRuntime JSRuntime { get; set; }
         protected List<PersonnelSummary> PersonnelList { get; set; } = null;
         protected Bio bioData;
+        protected Modal bioModalRef;
+        protected PersonnelSummary SelectedPersonnel { get; set; }
+        public PersonnelSummary SelectedPerson { get; set; }
+
         protected override async Task OnInitializedAsync()
         {
 
             PersonnelList = await MHDService.QueryPersonnelAsync();
 
         }
-        protected async void ShowBioModal(PersonnelSummary personnel)
+        protected async Task ShowModal(PersonnelSummary SelectedPersonnel)
         {
-            bioData = await MHDService.LoadBioAsync(personnel.PerIdentification);
-
-            await JSRuntime.InvokeAsync<object>("showBioModal");
+            if (SelectedPersonnel != null)
+            {
+                SelectedPerson = SelectedPersonnel;
+                bioData = await MHDService.LoadBioAsync(SelectedPersonnel.PerIdentification);
+                await bioModalRef.Show();
+            }
         }
-
+        protected Task HideModal()
+    {
+        return bioModalRef.Hide();
+    }
     }
 }

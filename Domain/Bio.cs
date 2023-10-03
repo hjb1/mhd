@@ -144,7 +144,7 @@ public class BioSummary
         BioExists = Bio != null;
     }
     public string Id { get; set; } = string.Empty;
-    public string PerIdentification { get; set; } = string.Empty;
+    public string PerIdentification { get; set; }
     public bool BioExists { get; set; } = false;
 }
 

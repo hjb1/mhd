@@ -7,7 +7,8 @@ using mhd;
 using Azure.Core;
 using Azure.Identity;
 using mhd.Domain;
-using Radzen;
+using Blazorise;
+using Blazorise.Bootstrap;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,7 +32,12 @@ builder.Services.AddDbContextFactory<DatabaseContext>(
     }
 );
 builder.Services.AddScoped<IMHDService, MHDService>();
-builder.Services.AddRadzenComponents();
+builder.Services.AddBlazorise(
+    options => 
+    {
+        options.Immediate = true;
+    }
+).AddBootstrapProviders();
 
 var app = builder.Build();
 

@@ -19,9 +19,12 @@ public class MHDService : IMHDService
     public async Task<Bio> LoadBioAsync(string perIdentification)
         {
             using var context = factory.CreateDbContext();
-            return await context.Bio
+            Bio? bio = await context.Bio
                     .WithPartitionKey(perIdentification)
                     .SingleOrDefaultAsync(d => d.perIdentification == perIdentification);
+            
+            
+            return bio;
         }
 
     public async Task<List<BioSummary>> QueryDocumentAsync(
