@@ -63,5 +63,21 @@ public class MHDService : IMHDService
             .OrderBy(ds => ds.LastName)
             .ToList();
     }
+    public async Task<List<Aircraft>> QueryAircraftAsync()
+    {
+        using var context = factory.CreateDbContext();
+
+        List<Aircraft> aircraftList = await context.Aircraft.ToListAsync();
+
+        foreach (Aircraft aircraft in aircraftList)
+        {
+            if (aircraft.acFinalAircraftDisposition =="Aircraft Final Disposition")
+            {
+                aircraft.acFinalAircraftDisposition = "";
+            }
+        }
+
+        return aircraftList.OrderBy(d => d.acAircraftNo).ToList();
+    }
  
 }

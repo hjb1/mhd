@@ -13,6 +13,7 @@ public interface IMHDService
     Task<Bio> LoadBioAsync(string PerIdentification);
 
     Task<List<PersonnelSummary>> QueryPersonnelAsync();
+    Task<List<Aircraft>> QueryAircraftAsync();
     
 }
 

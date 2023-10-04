@@ -38,9 +38,16 @@ public sealed class DatabaseContext : DbContext
             .WithOne(b => b.Personnel)
             .HasForeignKey<Bio>(b => b.perIdentification)
             .HasPrincipalKey<Personnel>(d => d.perIdentification);
+        
+        var AircraftModel = modelBuilder.Entity<Aircraft>();
+
+        AircraftModel.ToContainer(nameof(Aircraft)).HasNoDiscriminator();
+        AircraftModel.HasPartitionKey(d => d.acAircraftNo);
+
 
         base.OnModelCreating(modelBuilder);
     }
     public DbSet<Personnel> Personnel { get; set; }
+    public DbSet<Aircraft> Aircraft {get; set; }
     
 }

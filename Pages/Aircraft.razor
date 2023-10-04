@@ -1,0 +1,42 @@
+@page "/aircraft"
+
+@inherits AircraftBase
+<PageTitle>Aircraft</PageTitle>
+
+
+<h1 style="text-align: center;">Aircraft Summary</h1>
+
+@if (aircraftList == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="sunken-panel">
+    <table class="interactive">
+        <thead>
+            <tr>
+                <th>Aircraft #</th>
+                <th>Aircraft Letter</th>
+                <th>Aircraft Name</th>
+                <th>Bomb Group</th>
+                <th>Squadron</th>
+                <th>Aircraft Disposition</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var (aircraft, index) in aircraftList.Select((value, i) => (value, i)))
+                {
+                    <tr class="@((index % 2 == 0) ? "even-row" : "odd-row")">
+                        <td>@aircraft.acAircraftNo</td>
+                        <td>@aircraft.acAircraftLetter</td>
+                        <td>@aircraft.acAircraftName</td>
+                        <td>@aircraft.acBG</td>
+                        <td>@aircraft.acSquadron</td>
+                        <td style="white-space: normal; word-wrap: break-word;">@aircraft.acFinalAircraftDisposition</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
