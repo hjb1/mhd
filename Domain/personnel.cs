@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using mhd;
+using Microsoft.EntityFrameworkCore;
 
 namespace mhd.Domain;
+[PrimaryKey(nameof(perIdentification))]
 public class Personnel
 {
     public string id { get; set; }

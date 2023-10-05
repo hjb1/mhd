@@ -137,6 +137,13 @@ else
                                 <textarea id="bioDetails" class="form-control" readonly>@bioData.bioTripDetails</textarea>
                             </div>
                         </div>
+                        <div class="form-group row">
+                            
+                            <div class="form-group col">
+                                <label for="bioDetails">Obituary:</label>
+                                <textarea id="bioDetails" class="form-control" readonly>@SelectedPerson.ObituaryComments</textarea>
+                            </div>
+                        </div>
                     }
                     else
                     {
@@ -163,6 +170,8 @@ else
                 <th>Bio</th>
                 <th>Flight Group</th>
                 <th>Squadron</th>
+                <th>Deceased</th>
+                <th>Obituary</th>
             </tr>
         </thead>
         <tbody>
@@ -184,6 +193,17 @@ else
                         </td>
                         <td>@Personnel.PerGroup</td>
                         <td>@Personnel.PerSquadron</td>
+                        <td>@Personnel.DeceasedDate</td>
+                        <td>
+                            @if (Personnel.ObituaryComments != "")
+                            {
+                                <button type="button" class="btn btn-link" @onclick="() => ShowModal(Personnel)">View Bio</button>
+                            }
+                            else
+                            {
+                                
+                            }
+                        </td>
                     </tr>
                 }
             </tbody>

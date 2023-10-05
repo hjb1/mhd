@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace mhd.Domain;
+[PrimaryKey("acAircraftNo")]
 public class Aircraft
 {
     public string id { get; set; } 
@@ -16,4 +19,6 @@ public class Aircraft
     public string acSquadron { get; set; }
     public string acFinalAircraftDisposition { get; set; }
     public string acBG { get; set; }
+    [ForeignKey(nameof(acAircraftNo))]
+    public List<Mission> Mission { get; set; }
 }

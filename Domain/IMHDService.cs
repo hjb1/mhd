@@ -14,6 +14,7 @@ public interface IMHDService
 
     Task<List<PersonnelSummary>> QueryPersonnelAsync();
     Task<List<Aircraft>> QueryAircraftAsync();
+    Task<Aircraft> LoadAircraftMissionCrewSummaryAsync(string aircraftNo);
     
 }
 

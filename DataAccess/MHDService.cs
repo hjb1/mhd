@@ -17,18 +17,18 @@ public class MHDService : IMHDService
         this.factory = factory;
 
     public async Task<Bio> LoadBioAsync(string perIdentification)
-        {
-            using var context = factory.CreateDbContext();
-            Bio? bio = await context.Bio
-                    .WithPartitionKey(perIdentification)
-                    .SingleOrDefaultAsync(d => d.perIdentification == perIdentification);
-            
-            
-            return bio;
-        }
+    {
+        using var context = factory.CreateDbContext();
+        Bio? bio = await context.Bio
+                .WithPartitionKey(perIdentification)
+                .SingleOrDefaultAsync(d => d.perIdentification == perIdentification);
+
+
+        return bio;
+    }
 
     public async Task<List<BioSummary>> QueryDocumentAsync(
-    
+
     )
     {
         using var context = factory.CreateDbContext();
@@ -53,11 +53,15 @@ public class MHDService : IMHDService
             .ToListAsync();
 
         var personnel = await context.Personnel.ToListAsync();
-        
 
-        return personnel.Select(d => 
+
+        return personnel.Select(d =>
             {
                 bool hasBio = nonNullBios.Any(bioID => bioID == d.perIdentification);
+                if (d.DeceasedDate == "12/30/1899")
+                {
+                    d.DeceasedDate = "";
+                }
                 return new PersonnelSummary(d, hasBio);
             })
             .OrderBy(ds => ds.LastName)
@@ -71,7 +75,7 @@ public class MHDService : IMHDService
 
         foreach (Aircraft aircraft in aircraftList)
         {
-            if (aircraft.acFinalAircraftDisposition =="Aircraft Final Disposition")
+            if (aircraft.acFinalAircraftDisposition == "Aircraft Final Disposition")
             {
                 aircraft.acFinalAircraftDisposition = "";
             }
@@ -79,5 +83,49 @@ public class MHDService : IMHDService
 
         return aircraftList.OrderBy(d => d.acAircraftNo).ToList();
     }
- 
+
+    public async Task<Aircraft> LoadAircraftMissionCrewSummaryAsync(string aircraftNo)
+    {
+        using var context = factory.CreateDbContext();
+
+        try
+        {
+            List<Mission> missions = await context.Mission
+                .Where(m => m.acAircraftNo == aircraftNo)
+                .ToListAsync();
+
+            foreach (Mission mission in missions)
+            {
+                
+                var missionCrew = await context.MissionCrew
+                    .Where(mc => mc.acAircraftNo == aircraftNo && mc.misMissionNo == mission.misMissionNo)
+                    .ToListAsync();
+
+                
+                mission.MissionCrew = missionCrew;
+
+
+            }
+            Aircraft AircraftMissionCrew = new Aircraft
+            {
+                acAircraftNo = aircraftNo,
+                Mission = missions.OrderBy(m => m.misMissionNo).ToList()
+            };
+
+            return AircraftMissionCrew;
+        }
+        catch (CosmosException ce)
+        {
+            Aircraft AircraftMissionCrew = new Aircraft
+            {
+                acAircraftNo = aircraftNo,
+                Mission = new List<Mission>()
+            };
+
+            return AircraftMissionCrew;
+        }
+
+
+    }
+
 }

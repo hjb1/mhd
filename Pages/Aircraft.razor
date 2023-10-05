@@ -3,7 +3,54 @@
 @inherits AircraftBase
 <PageTitle>Aircraft</PageTitle>
 
-
+<Modal @ref="aircraftMissionsModalRef" ScrollToTop=false>
+    <ModalContent Size="ModalSize.ExtraLarge">
+        <ModalHeader>
+            <div class="card-header">
+                <h5>Mission Information for Aircraft @SelectedAirCraft.acAircraftNo</h5>
+                <button type="button" class="close" @onclick="HideModal">
+                    <span>&times;</span>
+                </button>
+            </div>
+        </ModalHeader>
+        <ModalBody>
+            @if (missionCrewSummaries.Mission.Count() == 0)
+            {
+                <p><em>No Missions Found</em></p>
+            }
+            else
+            {
+            <div>
+                <table class="interactive">
+                    <thead>
+                        <tr>
+                            <th>Mission No</th>
+                            <th># of Crew</th>
+                            <th>Aircraft Position</th>
+                            <th>Squadron Position</th>
+                            <th>Plane Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var mission in missionCrewSummaries.Mission)
+                        {
+                            <tr>
+                                <td>@mission.misMissionNo</td>
+                                <td>@mission.MissionCrew.Count</td>
+                                <td>@mission.acmAircraftPosition</td>
+                                <td>@mission.acmSquadronPos</td>
+                                <td style="white-space: normal; word-wrap: break-word;">
+                                    @mission.acmPlaneRemarks
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            }
+        </ModalBody>
+    </ModalContent>
+</Modal>
 <h1 style="text-align: center;">Aircraft Summary</h1>
 
 @if (aircraftList == null)
@@ -22,6 +69,7 @@ else
                 <th>Bomb Group</th>
                 <th>Squadron</th>
                 <th>Aircraft Disposition</th>
+                <th>Missions</th>
             </tr>
         </thead>
         <tbody>
@@ -34,6 +82,9 @@ else
                         <td>@aircraft.acBG</td>
                         <td>@aircraft.acSquadron</td>
                         <td style="white-space: normal; word-wrap: break-word;">@aircraft.acFinalAircraftDisposition</td>
+                        <td>
+                            <button type="button" class="btn btn-link" @onclick="() => ShowModal(aircraft)">View Missions</button>
+                        </td>
                     </tr>
                 }
             </tbody>
