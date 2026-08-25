@@ -29,20 +29,21 @@ namespace mhd.Pages
         protected bool SortAscending { get; set; } = true;
         protected string? LoadError { get; set; }
         protected bool IsLoading { get; set; } = true;
-        protected bool IsScanning { get; set; }
+        protected bool IsScanning { get; set; } = true;
         protected bool MissionsLoading { get; set; }
 
         private Timer? debounce;
         private CancellationTokenSource? loadCts;
         private bool pendingVirtualizeRefresh;
 
-        protected override async Task OnInitializedAsync()
-        {
-            await ReloadAsync(invalidate: false);
-        }
-
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
+            if (firstRender)
+            {
+                await ReloadAsync(invalidate: false);
+                return;
+            }
+
             if (pendingVirtualizeRefresh && AircraftGrid != null)
             {
                 pendingVirtualizeRefresh = false;

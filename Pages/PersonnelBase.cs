@@ -25,19 +25,20 @@ namespace mhd.Pages
         protected string? LoadError { get; set; }
         protected int BioTab { get; set; }
         protected bool IsLoading { get; set; } = true;
-        protected bool IsScanning { get; set; }
+        protected bool IsScanning { get; set; } = true;
 
         private Timer? debounce;
         private CancellationTokenSource? loadCts;
         private bool pendingVirtualizeRefresh;
 
-        protected override async Task OnInitializedAsync()
-        {
-            await ReloadAsync(invalidate: false);
-        }
-
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
+            if (firstRender)
+            {
+                await ReloadAsync(invalidate: false);
+                return;
+            }
+
             if (pendingVirtualizeRefresh && PersonGrid != null)
             {
                 pendingVirtualizeRefresh = false;
