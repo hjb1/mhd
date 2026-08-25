@@ -1,8 +1,6 @@
-using System.Timers;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using mhd.Domain;
-using Timer = System.Timers.Timer;
 
 namespace mhd.Pages
 {
@@ -36,7 +34,8 @@ namespace mhd.Pages
         protected bool ShowFullList { get; set; }
         protected bool MissionsLoading { get; set; }
 
-        private Timer? debounce;
+        private CancellationTokenSource? debounceCts;
+        private bool disposed;
 
         protected IEnumerable<mhd.Domain.Aircraft> VisibleRows => View.Take(VisibleCap);
 
@@ -47,7 +46,7 @@ namespace mhd.Pages
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            if (ShowMissionsDialog || ShowFullList || IsScanning || View.Count <= VisibleCap)
+            if (disposed || ShowMissionsDialog || ShowFullList || IsScanning || View.Count <= VisibleCap)
             {
                 return;
             }
@@ -55,18 +54,27 @@ namespace mhd.Pages
             try
             {
                 await JSRuntime.InvokeAsync<int>("mhd.ping");
+                if (disposed)
+                {
+                    return;
+                }
+
+                ShowFullList = true;
+                await InvokeAsync(StateHasChanged);
             }
-            catch (InvalidOperationException)
+            catch (ObjectDisposedException)
             {
-                return;
             }
             catch (JSDisconnectedException)
             {
-                return;
             }
-
-            ShowFullList = true;
-            StateHasChanged();
+            catch (InvalidOperationException)
+            {
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Aircraft after-render skipped");
+            }
         }
 
         protected async Task ReloadAsync(bool invalidate)
@@ -82,6 +90,11 @@ namespace mhd.Pages
 
                 ShowFullList = false;
                 aircraftList = await MHDService.QueryAircraftAsync();
+                if (disposed)
+                {
+                    return;
+                }
+
                 ApplyView();
             }
             catch (Exception ex)
@@ -100,16 +113,39 @@ namespace mhd.Pages
         protected void OnFilterInput(ChangeEventArgs e)
         {
             Filter = e.Value?.ToString() ?? string.Empty;
-            debounce?.Stop();
-            debounce?.Dispose();
-            debounce = new Timer(160);
-            debounce.AutoReset = false;
-            debounce.Elapsed += async (_, _) => await InvokeAsync(() =>
+            debounceCts?.Cancel();
+            debounceCts = new CancellationTokenSource();
+            var token = debounceCts.Token;
+            _ = DebounceApplyAsync(token);
+        }
+
+        private async Task DebounceApplyAsync(CancellationToken token)
+        {
+            try
             {
-                ApplyView();
-                StateHasChanged();
-            });
-            debounce.Start();
+                await Task.Delay(160, token);
+                if (disposed || token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                await InvokeAsync(() =>
+                {
+                    if (disposed)
+                    {
+                        return;
+                    }
+
+                    ApplyView();
+                    StateHasChanged();
+                });
+            }
+            catch (TaskCanceledException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
         }
 
         protected void OnOnly44thChanged(ChangeEventArgs e)
@@ -176,7 +212,7 @@ namespace mhd.Pages
             };
             MissionsLoading = true;
             ShowMissionsDialog = true;
-            await InvokeAsync(StateHasChanged);
+            await SafeStateHasChangedAsync();
 
             try
             {
@@ -194,7 +230,7 @@ namespace mhd.Pages
             finally
             {
                 MissionsLoading = false;
-                await InvokeAsync(StateHasChanged);
+                await SafeStateHasChangedAsync();
             }
 
             try
@@ -230,6 +266,28 @@ namespace mhd.Pages
         protected void HideModal()
         {
             ShowMissionsDialog = false;
+        }
+
+        private async Task SafeStateHasChangedAsync()
+        {
+            if (disposed)
+            {
+                return;
+            }
+
+            try
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+            catch (InvalidOperationException)
+            {
+            }
         }
 
         private void ApplyView()
@@ -289,7 +347,10 @@ namespace mhd.Pages
 
         public void Dispose()
         {
-            debounce?.Dispose();
+            disposed = true;
+            debounceCts?.Cancel();
+            debounceCts?.Dispose();
+            debounceCts = null;
         }
     }
 }
