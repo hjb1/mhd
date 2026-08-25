@@ -9,9 +9,10 @@
     06.12.2020
 
 */
-html {
+html, body {
   position: relative;
   min-height: 100%;
+  font-family: "MS Sans Serif", Tahoma, Verdana, Segoe, sans-serif;
 }
 /*
 
@@ -610,8 +611,11 @@ TABLES
 */
 .sunken-panel {
     box-sizing: border-box;
-    border: 2px groove transparent;
-    border-image: svg-load("../assets/icon/sunken-panel-border.svg") 2;
+    border-top: 2px solid #808080;
+    border-left: 2px solid #808080;
+    border-right: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    box-shadow: inset 1px 1px #000;
     overflow: auto;
     background-color: #fff;
   }

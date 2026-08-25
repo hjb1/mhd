@@ -3,27 +3,32 @@
 @inherits AircraftBase
 <PageTitle>Aircraft</PageTitle>
 
-<Modal @ref="aircraftMissionsModalRef" ScrollToTop=false>
+<Modal @ref="aircraftMissionsModalRef" ScrollToTop="false">
     <ModalContent Size="ModalSize.ExtraLarge">
         <ModalHeader>
             <div class="card-header">
-                <h5>Mission Information for Aircraft @SelectedAirCraft.acAircraftNo</h5>
-                <button type="button" class="close" @onclick="HideModal">
+                <img src="assets/icons/cd_drive-0.png" class="icon-16" alt="" />
+                <h5>Missions for Aircraft @SelectedAirCraft.acAircraftNo</h5>
+                <button type="button" class="close" @onclick="HideModal" aria-label="Close">
                     <span>&times;</span>
                 </button>
             </div>
         </ModalHeader>
         <ModalBody>
-            @if (missionCrewSummaries.Mission.Count() == 0)
+            @if (MissionsLoading)
             {
-                <p><em>No Missions Found</em></p>
+                <p><em>Reading mission records...</em></p>
+            }
+            else if (missionCrewSummaries.Mission.Count == 0)
+            {
+                <p><em>No missions found</em></p>
             }
             else
             {
-            <div>
-                <table class="interactive">
+                <table class="interactive mission-table">
                     <thead>
                         <tr>
+                            <th></th>
                             <th>Mission No</th>
                             <th># of Crew</th>
                             <th>Aircraft Position</th>
@@ -34,60 +39,137 @@
                     <tbody>
                         @foreach (var mission in missionCrewSummaries.Mission)
                         {
-                            <tr>
+                            var expanded = ExpandedMissionNo == mission.misMissionNo;
+                            <tr class="@(expanded ? "highlighted" : null)" @onclick="@(() => ToggleMission(mission.misMissionNo))">
+                                <td>@(expanded ? "▼" : "►")</td>
                                 <td>@mission.misMissionNo</td>
                                 <td>@mission.MissionCrew.Count</td>
                                 <td>@mission.acmAircraftPosition</td>
                                 <td>@mission.acmSquadronPos</td>
-                                <td style="white-space: normal; word-wrap: break-word;">
-                                    @mission.acmPlaneRemarks
-                                </td>
+                                <td class="wrap-cell">@mission.acmPlaneRemarks</td>
                             </tr>
+                            @if (expanded)
+                            {
+                                <tr class="crew-row">
+                                    <td colspan="6">
+                                        @if (mission.MissionCrew.Count == 0)
+                                        {
+                                            <em>No crew listed for this mission.</em>
+                                        }
+                                        else
+                                        {
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Rank</th>
+                                                        <th>Name</th>
+                                                        <th>Duties</th>
+                                                        <th>Status</th>
+                                                        <th>Remarks</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var crew in mission.MissionCrew)
+                                                    {
+                                                        <tr>
+                                                            <td>@crew.Rank</td>
+                                                            <td>@CrewName(crew)</td>
+                                                            <td>@crew.Duties</td>
+                                                            <td>@crew.Status</td>
+                                                            <td class="wrap-cell">@crew.NameRemarks</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        }
+                                    </td>
+                                </tr>
+                            }
                         }
                     </tbody>
                 </table>
-            </div>
             }
         </ModalBody>
+        <ModalFooter>
+            <button type="button" class="btn" @onclick="HideModal">OK</button>
+        </ModalFooter>
     </ModalContent>
 </Modal>
-<h1 style="text-align: center;">Aircraft Summary</h1>
 
-@if (aircraftList == null)
+<div class="page-fill">
+<div class="list-toolbar">
+    <img src="assets/icons/search_file-0.png" class="icon-16" alt="" />
+    <label for="aircraft-find">Find</label>
+    <input id="aircraft-find" class="form-95 find-box" value="@Filter" @oninput="OnFilterInput" placeholder="Number, name, group, squadron" />
+    <label class="toolbar-check">
+        <input type="checkbox" checked="@Only44th" @onchange="OnOnly44thChanged" />
+        44th Bomb Group
+    </label>
+    <button type="button" class="btn" disabled="@(SelectedAirCraft.acBG != "44th")" @onclick="OpenSelectedAsync">Missions</button>
+    <button type="button" class="btn" @onclick="@(() => ReloadAsync(true))">Refresh</button>
+</div>
+
+@if (LoadError != null)
 {
-    <p><em>Loading...</em></p>
+    <p class="load-error">@LoadError</p>
 }
 else
 {
-    <div class="sunken-panel">
-    <table class="interactive">
-        <thead>
-            <tr>
-                <th>Aircraft #</th>
-                <th>Aircraft Letter</th>
-                <th>Aircraft Name</th>
-                <th>Bomb Group</th>
-                <th>Squadron</th>
-                <th>Aircraft Disposition</th>
-                <th>Missions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var (aircraft, index) in aircraftList.Select((value, i) => (value, i)))
-                {
-                    <tr class="@((index % 2 == 0) ? "even-row" : "odd-row")">
-                        <td>@aircraft.acAircraftNo</td>
-                        <td>@aircraft.acAircraftLetter</td>
-                        <td>@aircraft.acAircraftName</td>
-                        <td>@aircraft.acBG</td>
-                        <td>@aircraft.acSquadron</td>
-                        <td style="white-space: normal; word-wrap: break-word;">@aircraft.acFinalAircraftDisposition</td>
-                        <td>
-                            <button type="button" class="btn btn-link" @onclick="() => ShowModal(aircraft)">View Missions</button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+    <div class="listview">
+        <div class="listview-header aircraft-grid">
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("acAircraftNo"))">Aircraft # @SortMark("acAircraftNo")</button>
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("acAircraftLetter"))">Letter @SortMark("acAircraftLetter")</button>
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("acAircraftName"))">Name @SortMark("acAircraftName")</button>
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("acBG"))">Bomb Group @SortMark("acBG")</button>
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("acSquadron"))">Squadron @SortMark("acSquadron")</button>
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("acFinalAircraftDisposition"))">Disposition @SortMark("acFinalAircraftDisposition")</button>
+            <span class="lv-col">Missions</span>
+        </div>
+        <div class="sunken-panel listview-body">
+            @if (View.Count == 0 && IsScanning)
+            {
+                <div class="empty-list">Reading Aircraft.mdb…</div>
+            }
+            else if (View.Count == 0)
+            {
+                <div class="empty-list">No items match your search.</div>
+            }
+            else
+            {
+                <Virtualize @ref="AircraftGrid" ItemsProvider="ProvideAircraft" ItemSize="22" OverscanCount="30">
+                    <div class="lv-row aircraft-grid @(SelectedAirCraft == context ? "highlighted" : null)"
+                         @onclick="@(() => SelectRow(context))"
+                         @ondblclick="@(() => OpenSelectedAsync())">
+                        <span>@context.acAircraftNo</span>
+                        <span>@context.acAircraftLetter</span>
+                        <span>@context.acAircraftName</span>
+                        <span>@context.acBG</span>
+                        <span>@context.acSquadron</span>
+                        <span class="wrap-cell">@context.acFinalAircraftDisposition</span>
+                        <span>
+                            @if (context.acBG == "44th")
+                            {
+                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(context))" @onclick:stopPropagation="true">View Missions</button>
+                            }
+                        </span>
+                    </div>
+                </Virtualize>
+            }
+        </div>
+    </div>
+    <div class="status-bar">
+        <span class="status-field">
+            @if (IsScanning)
+            {
+                <text>Scanning… @aircraftList.Count aircraft</text>
+            }
+            else
+            {
+                @View.Count <text>aircraft</text>
+                @(View.Count == aircraftList.Count ? string.Empty : $" of {aircraftList.Count}")
+            }
+        </span>
+        <span class="status-field">@(string.IsNullOrEmpty(SelectedAirCraft.acAircraftNo) ? "Ready" : SelectedAirCraft.acAircraftNo)</span>
     </div>
 }
+</div>

@@ -1,131 +1,217 @@
-using System;
-using Azure.Identity;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.Azure.Cosmos;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using mhd.Domain;
-using Radzen;
-using System.ComponentModel.DataAnnotations;
 
 namespace mhd.DataAccess;
 
 public class MHDService : IMHDService
 {
-    private readonly IDbContextFactory<DatabaseContext> factory;
+    private const string PersonnelCacheKey = "mhd:personnel";
+    private const string AircraftCacheKey = "mhd:aircraft";
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(15);
 
-    public MHDService(IDbContextFactory<DatabaseContext> factory) =>
+    private readonly IDbContextFactory<DatabaseContext> factory;
+    private readonly IMemoryCache cache;
+
+    public MHDService(IDbContextFactory<DatabaseContext> factory, IMemoryCache cache)
+    {
         this.factory = factory;
+        this.cache = cache;
+    }
+
+    private static void EnsureCosmosConfigured()
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("COSMOS_ENDPOINT", EnvironmentVariableTarget.Process)) ||
+            string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("COSMOS_DATABASE", EnvironmentVariableTarget.Process)))
+        {
+            throw new InvalidOperationException("Cosmos DB is not configured.");
+        }
+    }
 
     public async Task<Bio> LoadBioAsync(string perIdentification)
     {
-        using var context = factory.CreateDbContext();
-        Bio? bio = await context.Bio
+        EnsureCosmosConfigured();
+        var key = $"mhd:bio:{perIdentification}";
+        var bio = await cache.GetOrCreateAsync(key, async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = CacheDuration;
+            using var context = factory.CreateDbContext();
+            return await context.Bio
                 .WithPartitionKey(perIdentification)
                 .SingleOrDefaultAsync(d => d.perIdentification == perIdentification);
+        });
 
-
-        return bio;
+        return bio!;
     }
 
-    public async Task<List<BioSummary>> QueryDocumentAsync(
-
-    )
+    public async Task<List<BioSummary>> QueryDocumentAsync()
     {
+        EnsureCosmosConfigured();
         using var context = factory.CreateDbContext();
-
-        var result = new HashSet<BioSummary>();
-
         var documents = await context.Bio.ToListAsync();
-
         return documents.Select(d => new BioSummary(d)).OrderBy(ds => ds.PerIdentification).ToList();
     }
+
     public async Task<List<PersonnelSummary>> QueryPersonnelAsync()
     {
-        using var context = factory.CreateDbContext();
+        var list = new List<PersonnelSummary>();
+        await FillPersonnelAsync(list);
+        return list;
+    }
 
-        var result = new HashSet<PersonnelSummary>();
-        bool HasBio = false;
+    public async Task FillPersonnelAsync(List<PersonnelSummary> destination, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+    {
+        EnsureCosmosConfigured();
+        if (cache.TryGetValue(PersonnelCacheKey, out List<PersonnelSummary>? cached) && cached != null)
+        {
+            destination.AddRange(cached);
+            progress?.Report(destination.Count);
+            return;
+        }
 
-        var nonNullBios = await context.Bio
+        using var bioContext = factory.CreateDbContext();
+        using var personnelContext = factory.CreateDbContext();
+
+        var bioIdsTask = bioContext.Bio
             .Where(b => b.perIdentification != null)
             .Select(b => b.perIdentification)
-            .Distinct()
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
-        var personnel = await context.Personnel.ToListAsync();
+        HashSet<string>? bioIds = null;
+        var flushed = 0;
 
-
-        return personnel.Select(d =>
+        await foreach (var d in personnelContext.Personnel.AsAsyncEnumerable().WithCancellation(cancellationToken))
+        {
+            if (bioIds == null && bioIdsTask.IsCompletedSuccessfully)
             {
-                bool hasBio = nonNullBios.Any(bioID => bioID == d.perIdentification);
-                if (d.DeceasedDate == "12/30/1899")
-                {
-                    d.DeceasedDate = "";
-                }
-                return new PersonnelSummary(d, hasBio);
-            })
-            .OrderBy(ds => ds.LastName)
-            .ToList();
+                bioIds = (await bioIdsTask).ToHashSet();
+            }
+
+            if (d.DeceasedDate == "12/30/1899")
+            {
+                d.DeceasedDate = "";
+            }
+
+            destination.Add(new PersonnelSummary(d, bioIds != null && bioIds.Contains(d.perIdentification)));
+
+            if (ShouldFlush(destination.Count, flushed))
+            {
+                flushed = destination.Count;
+                progress?.Report(flushed);
+            }
+        }
+
+        bioIds ??= (await bioIdsTask).ToHashSet();
+        foreach (var person in destination)
+        {
+            person.HasBio = !string.IsNullOrEmpty(person.PerIdentification) && bioIds.Contains(person.PerIdentification);
+        }
+
+        destination.Sort((a, b) =>
+        {
+            var last = string.Compare(a.LastName, b.LastName, StringComparison.OrdinalIgnoreCase);
+            return last != 0 ? last : string.Compare(a.FirstName, b.FirstName, StringComparison.OrdinalIgnoreCase);
+        });
+
+        cache.Set(PersonnelCacheKey, destination.ToList(), CacheDuration);
+        progress?.Report(destination.Count);
     }
+
     public async Task<List<Aircraft>> QueryAircraftAsync()
     {
+        var list = new List<Aircraft>();
+        await FillAircraftAsync(list);
+        return list;
+    }
+
+    public async Task FillAircraftAsync(List<Aircraft> destination, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+    {
+        EnsureCosmosConfigured();
+        if (cache.TryGetValue(AircraftCacheKey, out List<Aircraft>? cached) && cached != null)
+        {
+            destination.AddRange(cached);
+            progress?.Report(destination.Count);
+            return;
+        }
+
         using var context = factory.CreateDbContext();
+        var flushed = 0;
 
-        List<Aircraft> aircraftList = await context.Aircraft.ToListAsync();
-
-        foreach (Aircraft aircraft in aircraftList)
+        await foreach (var aircraft in context.Aircraft.AsAsyncEnumerable().WithCancellation(cancellationToken))
         {
             if (aircraft.acFinalAircraftDisposition == "Aircraft Final Disposition")
             {
                 aircraft.acFinalAircraftDisposition = "";
             }
+
+            destination.Add(aircraft);
+
+            if (ShouldFlush(destination.Count, flushed))
+            {
+                flushed = destination.Count;
+                progress?.Report(flushed);
+            }
         }
 
-        return aircraftList.OrderBy(d => d.acAircraftNo).ToList();
+        destination.Sort((a, b) => string.Compare(a.acAircraftNo, b.acAircraftNo, StringComparison.OrdinalIgnoreCase));
+        cache.Set(AircraftCacheKey, destination.ToList(), CacheDuration);
+        progress?.Report(destination.Count);
     }
+
+    private static bool ShouldFlush(int count, int flushed) =>
+        count == 40 || (count - flushed) >= 200;
 
     public async Task<Aircraft> LoadAircraftMissionCrewSummaryAsync(string aircraftNo)
     {
+        EnsureCosmosConfigured();
+        var key = $"mhd:missions:{aircraftNo}";
+        if (cache.TryGetValue(key, out Aircraft? cached) && cached != null)
+        {
+            return cached;
+        }
+
         using var context = factory.CreateDbContext();
 
         try
         {
-            List<Mission> missions = await context.Mission
+            var missions = await context.Mission
                 .Where(m => m.acAircraftNo == aircraftNo)
                 .ToListAsync();
 
-            foreach (Mission mission in missions)
-            {
-                
-                var missionCrew = await context.MissionCrew
-                    .Where(mc => mc.acAircraftNo == aircraftNo && mc.misMissionNo == mission.misMissionNo)
+            var crew = missions.Count == 0
+                ? new List<MissionCrew>()
+                : await context.MissionCrew
+                    .Where(mc => mc.acAircraftNo == aircraftNo)
                     .ToListAsync();
 
-                
-                mission.MissionCrew = missionCrew;
-
-
+            var crewByMission = crew.ToLookup(mc => mc.misMissionNo);
+            foreach (var mission in missions)
+            {
+                mission.MissionCrew = crewByMission[mission.misMissionNo].ToList();
             }
-            Aircraft AircraftMissionCrew = new Aircraft
+
+            var result = new Aircraft
             {
                 acAircraftNo = aircraftNo,
                 Mission = missions.OrderBy(m => m.misMissionNo).ToList()
             };
-
-            return AircraftMissionCrew;
+            cache.Set(key, result, CacheDuration);
+            return result;
         }
-        catch (CosmosException ce)
+        catch (CosmosException)
         {
-            Aircraft AircraftMissionCrew = new Aircraft
+            return new Aircraft
             {
                 acAircraftNo = aircraftNo,
                 Mission = new List<Mission>()
             };
-
-            return AircraftMissionCrew;
         }
-
-
     }
 
+    public void InvalidateListCache()
+    {
+        cache.Remove(PersonnelCacheKey);
+        cache.Remove(AircraftCacheKey);
+    }
 }

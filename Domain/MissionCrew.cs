@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Security.Policy;
 using Microsoft.EntityFrameworkCore;
 
 namespace mhd.Domain;
@@ -12,7 +9,7 @@ public class MissionCrew
     public string acAircraftNo {get; set; }
     public string misMissionNo { get; set; }
     [ForeignKey("perIdentification")]
-    public Personnel? Personnel { get; set; } = new Personnel();
+    public Personnel? Personnel { get; set; }
     public string? perIdentification {get; set; }
     public string? Status { get; set; }
     public string? Rank { get; set; }

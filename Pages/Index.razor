@@ -1,54 +1,61 @@
-﻿@page "/"
+@page "/"
 
 <PageTitle>Military Heritage Database</PageTitle>
-<div class="windows-scrollbar">
-    <h1 class="display-6">
-    United States Air Force - Military Heritage Database
-    </h1>
-</div>
-<div class="container">
-    <div class="row">
-        <div class="col-md-4 text-center">
-            <br><br>
-            United States Air Force
-            <br><br>
-            Military Heritage Database
-            <br><br>
-            World War II
-            <br><br>
-            "Remember And Share ... With Those Who Where There"
-            <br><br>
-            Eigth Air Force<br>
-            Second Air Division<br>
-            44th Bomb Group<br>
-            <br><br>
+
+<div class="home-scroll">
+<div class="home-grid">
+    <div class="card">
+        <div class="card-header">
+            <img src="assets/icons/help_book_cool-0.png" class="icon-16" alt="" />
+            About Military Heritage Database
         </div>
-        <div class="col-md-4 my-auto">
-            <div class="card">
-                    <div class="card-header">
-                        <h4 class="my-0 font-weight-normal">
-                            <img src="assets/icons/cd_drive-0.png">
-                            Military Heritage Database
-                        </h4>
-                    </div>
-                    <div class="card-body">
-                        <ul class="list-unstyled mt-3 mb-4">
-                            <li>Future Home of</li>
-                            <li>the decoded database started</li>
-                            <li>this X/Twitter thread</li>
-                            <li><a href="https://twitter.com/mtruslowstorey/status/1703781076689121556">Twitter Thread</a></li>
-                        </ul>
-                        <a href="https://twitter.com/mtruslowstorey/status/1703781076689121556" class="btn btn-lg btn-block"><img src="assets/icons/internet_connection_wiz-5.png" class="icon-16"> Thread</a>
-                        <a href="https://github.com/hjb1/mhd" class="btn btn-lg btn-block"><img src="assets/icons/internet_connection_wiz-5.png" class="icon-16"> GitHub</a>
-                    </div>
-                </div>
+        <div class="card-body about-copy">
+            <p><strong>United States Air Force</strong></p>
+            <p>Military Heritage Database</p>
+            <p>World War II</p>
+            <p class="motto">"Remember And Share ... With Those Who Were There"</p>
+            <p>
+                Eighth Air Force<br />
+                Second Air Division<br />
+                44th Bomb Group
+            </p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <img src="assets/icons/cd_drive-0.png" class="icon-16" alt="" />
+            Programs
+        </div>
+        <div class="card-body program-icons">
+            <NavLink href="personnel" class="desktop-icon">
+                <img src="assets/icons/address_book_users.png" alt="" />
+                <span>Personnel</span>
+            </NavLink>
+            <NavLink href="aircraft" class="desktop-icon">
+                <img src="assets/icons/cd_drive-0.png" alt="" />
+                <span>Aircraft</span>
+            </NavLink>
+            <a href="https://twitter.com/mtruslowstorey/status/1703781076689121556" class="desktop-icon" target="_blank" rel="noopener noreferrer">
+                <img src="assets/icons/internet_connection_wiz-5.png" alt="" />
+                <span>Thread</span>
+            </a>
+            <a href="https://github.com/hjb1/mhd" class="desktop-icon" target="_blank" rel="noopener noreferrer">
+                <img src="assets/icons/help_sheet-0.png" alt="" />
+                <span>GitHub</span>
+            </a>
         </div>
     </div>
 </div>
 
-<p>
-    <img class="img-fluid" src="https://mhd09192023.blob.core.windows.net/mhdimg/F6UL2L6XQAAop2e-2.webp" />
-</p>
-<p>
-    <img class="img-fluid" src="https://mhd09192023.blob.core.windows.net/mhdimg/F6ULzH9WMAAExJT-2.webp" />
-</p>
+<div class="card photo-window">
+    <div class="card-header">
+        <img src="assets/icons/camera-0.png" class="icon-16" alt="" />
+        Pictures
+    </div>
+    <div class="card-body">
+        <img class="img-fluid" src="https://mhd09192023.blob.core.windows.net/mhdimg/F6UL2L6XQAAop2e-2.webp" alt="Heritage photograph" loading="lazy" decoding="async" />
+        <img class="img-fluid" src="https://mhd09192023.blob.core.windows.net/mhdimg/F6ULzH9WMAAExJT-2.webp" alt="Heritage photograph" loading="lazy" decoding="async" />
+    </div>
+</div>
+</div>

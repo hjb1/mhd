@@ -1,212 +1,203 @@
-﻿@page "/personnel"
+@page "/personnel"
 
 @inherits PersonnelBase
-@inject IJSRuntime JSRuntime
 <PageTitle>Personnel</PageTitle>
 
-<h1 style="text-align: center;">Personal Profile Index</h1>
-
-<p>This component is grabbing a summary of Personnel Data.</p>
-
-@if (PersonnelList == null)
-{
-    <p><em>Loading...</em></p>
-}
-else
-{
-    <Modal @ref="bioModalRef" ScrollToTop=false>
+<Modal @ref="bioModalRef" ScrollToTop="false">
     <ModalContent Size="ModalSize.ExtraLarge">
         <ModalHeader>
             <div class="card-header">
-                <h5>Bio Information</h5>
-                <button type="button" class="close" @onclick="HideModal">
+                <img src="assets/icons/address_book_user.png" class="icon-16" alt="" />
+                <h5>
+                    @if (SelectedPerson != null)
+                    {
+                        @($"{SelectedPerson.LastName}, {SelectedPerson.FirstName}")
+                    }
+                    else
+                    {
+                        <text>Bio Information</text>
+                    }
+                </h5>
+                <button type="button" class="close" @onclick="HideModal" aria-label="Close">
                     <span>&times;</span>
                 </button>
             </div>
         </ModalHeader>
         <ModalBody>
-            <div class="card-body">
-                <!-- Display Bio information here -->
-                @if (bioData != null)
+            @if (SelectedPerson == null)
+            {
+                <span>No record selected.</span>
+            }
+            else
+            {
+                <ul class="nav nav-tabs">
+                    <li class="nav-item">
+                        <button type="button" class="nav-link @(BioTab == 0 ? "active" : null)" @onclick="@(() => BioTab = 0)">Personal</button>
+                    </li>
+                    <li class="nav-item">
+                        <button type="button" class="nav-link @(BioTab == 1 ? "active" : null)" @onclick="@(() => BioTab = 1)">Service</button>
+                    </li>
+                    <li class="nav-item">
+                        <button type="button" class="nav-link @(BioTab == 2 ? "active" : null)" @onclick="@(() => BioTab = 2)">Notes</button>
+                    </li>
+                </ul>
+                <div class="tab-content bio-sheet">
+                    @if (bioData == null && !HasObituary(SelectedPerson))
                     {
-                        <div class="form-group row">
-                            <div class="form-group col">
-                                <label for="Name">Name: </label>
-                                <input type="text" id="fullName" class="form-control form-control-sm " readonly
-                                    value="@($"{SelectedPerson.FirstName}, {SelectedPerson.LastName}")" />
-                            </div>
-                            <div class="form-group col">
-                                <label for="bioNickname">Nickname:</label>
-                                <input type="text" id="bioNickname" class="form-control form-control-sm " readonly value="@bioData.bioNickname" />
-                            </div>
-                            <div class="form-group col">
-                                <label for="bioRank">Rank:</label>
-                                <input type="text" id="bioRank" class="form-control form-control-sm " readonly value="@bioData.bioRank" />
-                            </div>
-                            <div class="form-group col">
-                                <label for="bioCity">HomeTown:</label>
-                                <input type="text" id="bioCity" class="form-control form-control-sm " readonly value="@($"{bioData.bioCity}, {bioData.bioState}")" />
-                            </div>
-                            <div class="form-group col">
-                                <label for="Born">Born at:</label>
-                                <input type="text" id="Born" class="form-control form-control-sm " readonly value="@($"{bioData.bioBirthCity}, {bioData.bioBirthState}")" />
-                            </div>
+                        <p>No bio data found for this airman.</p>
+                    }
+                    else if (BioTab == 0)
+                    {
+                        <div class="prop-grid">
+                            <label>Name</label>
+                            <input class="form-95" readonly value="@($"{SelectedPerson.FirstName} {SelectedPerson.LastName}")" />
+                            <label>Nickname</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioNickname)" />
+                            <label>Rank</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioRank)" />
+                            <label>Hometown</label>
+                            <input class="form-95" readonly value="@($"{Display(bioData?.bioCity)} {Display(bioData?.bioState)}".Trim())" />
+                            <label>Born at</label>
+                            <input class="form-95" readonly value="@($"{Display(bioData?.bioBirthCity)} {Display(bioData?.bioBirthState)}".Trim())" />
+                            <label>Prior occupation</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioOccupationPrior)" />
+                            <label>Post occupation</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioOccupationAfter)" />
                         </div>
-                        <div class="form-group row">
-
-                            <div class="form-group col">
-                                <label for="entry">Entered at:</label>
-                                <input type="text" id="enty" class="form-control form-control-sm " readonly value="@($"{bioData.bioEntryLocation}, {bioData.bioEntryState}")" />
-                            </div>
-                            <div class="form-group col">
-                                <label for="bioDateEnteredService">Entered:</label>
-                                <input type="text" id="bioDateEnteredService" class="form-control form-control-sm " readonly value="@bioData.bioDateEnteredService" />
-                            </div>
-                            <div class="form-group col">
-                                <label for="bioFlightCrewPosition">Flight Crew Position:</label>
-                                <input type="text" id="bioFlightCrewPosition" class="form-control form-control-sm " readonly value="@bioData.bioFlightCrewPosition" />
-                            </div>
-                        <div class="form-group row">
-                            <div class="form-group col">
-                                <label for="bioSpecialTraining">Cadet Class:</label>
-                                <input type="text" id="bioSpecialTraining" class="form-control form-control-sm " readonly value="@bioData.bioCadetClass" />
-                            </div>
-                            <div class="form-group col">
-                                <label for="bioSpecialTraining">Graduated:</label>
-                                <input type="text" id="bioSpecialTraining" class="form-control form-control-sm " readonly value="@bioData.bioGraduationLocation" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            
-                            <div class="form-group col">
-                                <label for="bioSpecialTraining">Special Training:</label>
-                                <input type="text" id="bioSpecialTraining" class="form-control form-control-sm " readonly value="@bioData.bioSpecialTraining" />
-                            </div>
-                        </div>
-                        </div>
-                        <div class="form-group row">
-                            
-                            <div class="form-group col">
-                                <label for="bioLocationArrivalDate">Arrived:</label>
-                                <input type="text" id="bioLocationArrivalDate" class="form-control form-control-sm " readonly value="@bioData.bioLocationArrivalDate" />
-                            </div>
-                            <div class="form-group col">
-                                <label for="bioArrivedFrom">Arrived From:</label>
-                                <input type="text" id="bioArrivedFrom" class="form-control form-control-sm " readonly value="@bioData.bioArrivedFrom" />
-                            </div>
-                            <div class="form-group col">
-                                <label for="bioArrivedHow">Arrived Via:</label>
-                                <input type="text" id="bioArrivedHow" class="form-control form-control-sm " readonly value="@bioData.bioArrivedHow" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <div class="form-group col">
-                                <label for="bioDepartedFrom">Departed:</label>
-                                <input type="text" id="bioDepartedFrom" class="form-control form-control-sm " readonly value="@bioData.bioDepartedFrom" />
-                            </div>
-                            <div class="form-group col">
-                                <label for="bioDepartedFrom">Departed From:</label>
-                                <input type="text" id="bioDepartedFrom" class="form-control form-control-sm " readonly value="@bioData.bioDepartedLocation" />
-                            </div>
-                            <div class="form-group col">
-                                <label for="bioDepartedHow">Departed Via:</label>
-                                <input type="text" id="bioDepartedHow" class="form-control form-control-sm " readonly value="@bioData.bioDepartedHow" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <div class="form-group col">
-                                <label for="bioOccupationPrior">Prior Occupation:</label>
-                                <input type="text" id="bioOccupationPrior" class="form-control form-control-sm " readonly value="@bioData.bioOccupationPrior" />
-                            </div>
-                            <div class="form-group col">
-                                <label for="bioOccupationAfter">Post Occupation:</label>
-                                <input type="text" id="bioOccupationAfter" class="form-control form-control-sm " readonly value="@bioData.bioOccupationAfter" />
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            
-                            <div class="form-group col">
-                                <label for="bioDetails">Details:</label>
-                                <textarea id="bioDetails" class="form-control" readonly>@bioData.bioDetails</textarea>
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            
-                            <div class="form-group col">
-                                <label for="bioDetails">Trip Details:</label>
-                                <textarea id="bioDetails" class="form-control" readonly>@bioData.bioTripDetails</textarea>
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            
-                            <div class="form-group col">
-                                <label for="bioDetails">Obituary:</label>
-                                <textarea id="bioDetails" class="form-control" readonly>@SelectedPerson.ObituaryComments</textarea>
-                            </div>
+                    }
+                    else if (BioTab == 1)
+                    {
+                        <div class="prop-grid">
+                            <label>Entered at</label>
+                            <input class="form-95" readonly value="@($"{Display(bioData?.bioEntryLocation)} {Display(bioData?.bioEntryState)}".Trim())" />
+                            <label>Entered</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioDateEnteredService)" />
+                            <label>Flight crew position</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioFlightCrewPosition)" />
+                            <label>Cadet class</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioCadetClass)" />
+                            <label>Graduated</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioGraduationLocation)" />
+                            <label>Special training</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioSpecialTraining)" />
+                            <label>Arrived</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioLocationArrivalDate)" />
+                            <label>Arrived from</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioArrivedFrom)" />
+                            <label>Arrived via</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioArrivedHow)" />
+                            <label>Departed</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioDepartedFrom)" />
+                            <label>Departed from</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioDepartedLocation)" />
+                            <label>Departed via</label>
+                            <input class="form-95" readonly value="@Display(bioData?.bioDepartedHow)" />
                         </div>
                     }
                     else
                     {
-                        <span>No Bio Data Found</span>
+                        <label>Details</label>
+                        <textarea class="form-95" rows="4" readonly>@Display(bioData?.bioDetails)</textarea>
+                        <label>Trip details</label>
+                        <textarea class="form-95" rows="3" readonly>@Display(bioData?.bioTripDetails)</textarea>
+                        <label>Obituary</label>
+                        <textarea class="form-95" rows="4" readonly>@Display(SelectedPerson.ObituaryComments)</textarea>
                     }
                 </div>
-            </ModalBody>
-            <ModalFooter>
-                <div class="justify-content-between">
-                    <span class="text-left small font-italic text-muted">* not all bio data available is displayed.</span>
-                    <button type="button" class="btn btn-secondary" @onclick="HideModal">Close</button>
-                </div>
-                
-            </ModalFooter>
-        </ModalContent>
-    </Modal>
-    <div class="sunken-panel">
-    <table class="interactive">
-        <thead>
-            <tr>
-                <th>PerIdentification</th>
-                <th>First Name</th>
-                <th>Last Name</th>
-                <th>Bio</th>
-                <th>Flight Group</th>
-                <th>Squadron</th>
-                <th>Deceased</th>
-                <th>Obituary</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var Personnel in PersonnelList)
-                {
-                    <tr>
-                        <td>@Personnel.PerIdentification</td>
-                        <td>@Personnel.FirstName</td>
-                        <td>@Personnel.LastName</td>
-                        <td>
-                            @if (Personnel.HasBio)
+            }
+        </ModalBody>
+        <ModalFooter>
+            <span class="small font-italic">* not all bio data available is displayed.</span>
+            <button type="button" class="btn" @onclick="HideModal">OK</button>
+        </ModalFooter>
+    </ModalContent>
+</Modal>
+
+<div class="page-fill">
+<div class="list-toolbar">
+    <img src="assets/icons/search_file-0.png" class="icon-16" alt="" />
+    <label for="personnel-find">Find</label>
+    <input id="personnel-find" class="form-95 find-box" value="@Filter" @oninput="OnFilterInput" placeholder="Name, ID, group, squadron" />
+    <label class="toolbar-check">
+        <input type="checkbox" checked="@BiosOnly" @onchange="OnBiosOnlyChanged" />
+        Bios only
+    </label>
+    <button type="button" class="btn" disabled="@(SelectedPerson == null || (!SelectedPerson.HasBio && !HasObituary(SelectedPerson)))" @onclick="OpenSelectedAsync">Open</button>
+    <button type="button" class="btn" @onclick="@(() => ReloadAsync(true))">Refresh</button>
+</div>
+
+@if (LoadError != null)
+{
+    <p class="load-error">@LoadError</p>
+}
+else
+{
+    <div class="listview">
+        <div class="listview-header personnel-grid">
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("PerIdentification"))">ID @SortMark("PerIdentification")</button>
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("FirstName"))">First Name @SortMark("FirstName")</button>
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("LastName"))">Last Name @SortMark("LastName")</button>
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("HasBio"))">Bio @SortMark("HasBio")</button>
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("PerGroup"))">Flight Group @SortMark("PerGroup")</button>
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("PerSquadron"))">Squadron @SortMark("PerSquadron")</button>
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("DeceasedDate"))">Deceased @SortMark("DeceasedDate")</button>
+            <span class="lv-col">Obituary</span>
+        </div>
+        <div class="sunken-panel listview-body">
+            @if (View.Count == 0 && IsScanning)
+            {
+                <div class="empty-list">Reading Personnel.mdb…</div>
+            }
+            else if (View.Count == 0)
+            {
+                <div class="empty-list">No items match your search.</div>
+            }
+            else
+            {
+                <Virtualize @ref="PersonGrid" ItemsProvider="ProvidePersonnel" ItemSize="22" OverscanCount="30">
+                    <div class="lv-row personnel-grid @(SelectedPerson == context ? "highlighted" : null)"
+                         @onclick="@(() => SelectRow(context))"
+                         @ondblclick="@(() => ShowModal(context))">
+                        <span>@context.PerIdentification</span>
+                        <span>@context.FirstName</span>
+                        <span>@context.LastName</span>
+                        <span>
+                            @if (context.HasBio)
                             {
-                                <button type="button" class="btn btn-link" @onclick="() => ShowModal(Personnel)">View Bio</button>
+                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(context))" @onclick:stopPropagation="true">View Bio</button>
                             }
                             else
                             {
-                                <span>No Bio</span>
+                                <text>No Bio</text>
                             }
-                        </td>
-                        <td>@Personnel.PerGroup</td>
-                        <td>@Personnel.PerSquadron</td>
-                        <td>@Personnel.DeceasedDate</td>
-                        <td>
-                            @if (Personnel.ObituaryComments != "")
+                        </span>
+                        <span>@context.PerGroup</span>
+                        <span>@context.PerSquadron</span>
+                        <span>@context.DeceasedDate</span>
+                        <span>
+                            @if (HasObituary(context))
                             {
-                                <button type="button" class="btn btn-link" @onclick="() => ShowModal(Personnel)">View Bio</button>
+                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(context))" @onclick:stopPropagation="true">View</button>
                             }
-                            else
-                            {
-                                
-                            }
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+                        </span>
+                    </div>
+                </Virtualize>
+            }
+        </div>
+    </div>
+    <div class="status-bar">
+        <span class="status-field">
+            @if (IsScanning)
+            {
+                <text>Scanning… @PersonnelList.Count record(s)</text>
+            }
+            else
+            {
+                @View.Count <text>record(s)</text>
+                @(View.Count == PersonnelList.Count ? string.Empty : $" of {PersonnelList.Count}")
+            }
+        </span>
+        <span class="status-field">@(SelectedPerson == null ? "Ready" : $"{SelectedPerson.LastName}, {SelectedPerson.FirstName}")</span>
     </div>
 }
+</div>

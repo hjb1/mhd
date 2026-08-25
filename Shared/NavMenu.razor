@@ -1,35 +1,23 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">mhd</a>
+<div class="explorer-tree">
+    <div class="explorer-header">
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
+            All Folders
         </button>
     </div>
-</div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="oi oi-home" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-        @*
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="oi oi-plus" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-         *@
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="personnel">
-                <span class="oi oi-list-rich" aria-hidden="true"></span> Personnel
-            </NavLink>
-               <NavLink class="nav-link" href="aircraft">
-                <span class="oi oi-list-rich" aria-hidden="true"></span> Aircraft
-            </NavLink>
-        </div>
-       
+    <nav class="@NavMenuCssClass explorer-nav">
+        <NavLink href="" Match="NavLinkMatch.All" class="explorer-link">
+            <img src="assets/icons/computer_explorer-0.png" alt="" />
+            My Computer
+        </NavLink>
+        <NavLink href="personnel" class="explorer-link">
+            <img src="assets/icons/address_book_users.png" alt="" />
+            Personnel
+        </NavLink>
+        <NavLink href="aircraft" class="explorer-link">
+            <img src="assets/icons/cd_drive-0.png" alt="" />
+            Aircraft
+        </NavLink>
     </nav>
 </div>
 

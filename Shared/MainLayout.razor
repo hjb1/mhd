@@ -1,23 +1,131 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
+@inject NavigationManager Nav
+@implements IDisposable
 
-<PageTitle>mhd</PageTitle>
+<PageTitle>Military Heritage Database</PageTitle>
 
-<div class="page">
+<div class="desktop" @onclick="CloseStartMenu">
+    <div class="app-window">
+        <div class="window-title">
+            <img src="assets/icons/windows-0.png" class="icon-16" alt="" />
+            <span class="window-title-text">Military Heritage Database</span>
+            <div class="window-buttons">
+                <button type="button" class="window-btn" title="Minimize" disabled>_</button>
+                <button type="button" class="window-btn" title="Maximize">□</button>
+                <a class="window-btn" href="" title="Close">x</a>
+            </div>
+        </div>
 
-    <div class="sidebar">
-        <NavMenu />
+        <div class="window-menu">
+            <div class="menu-item">
+                <span><u>F</u>ile</span>
+                <div class="menu-dropdown">
+                    <NavLink href="personnel">Open Personnel</NavLink>
+                    <NavLink href="aircraft">Open Aircraft</NavLink>
+                    <div class="menu-sep"></div>
+                    <NavLink href="" Match="NavLinkMatch.All">Close</NavLink>
+                </div>
+            </div>
+            <div class="menu-item">
+                <span><u>V</u>iew</span>
+                <div class="menu-dropdown">
+                    <button type="button" @onclick="Refresh">Refresh</button>
+                </div>
+            </div>
+            <div class="menu-item">
+                <span><u>H</u>elp</span>
+                <div class="menu-dropdown">
+                    <NavLink href="" Match="NavLinkMatch.All">About MHD</NavLink>
+                </div>
+            </div>
+        </div>
+
+        <div class="window-main">
+            <aside class="explorer-pane">
+                <NavMenu />
+            </aside>
+            <article class="client-area">
+                @Body
+            </article>
+        </div>
     </div>
 
-
-    <main>
-        @*
-        <div class="top-row px-4">
-        <a href="https://docs.microsoft.com/aspnet/" target="_blank">About</a>
+    <div class="taskbar" @onclick:stopPropagation="true">
+        <button type="button" class="start-button @(startOpen ? "pressed" : null)" @onclick="ToggleStartMenu">
+            <img src="assets/icons/windows-0.png" class="icon-16" alt="" />
+            Start
+        </button>
+        @if (startOpen)
+        {
+            <div class="start-menu">
+                <div class="start-banner">Windows 95</div>
+                <div class="start-items">
+                    <NavLink href="personnel" @onclick="CloseStartMenu">
+                        <img src="assets/icons/address_book_users.png" class="icon-16" alt="" />
+                        Personnel
+                    </NavLink>
+                    <NavLink href="aircraft" @onclick="CloseStartMenu">
+                        <img src="assets/icons/cd_drive-0.png" class="icon-16" alt="" />
+                        Aircraft
+                    </NavLink>
+                    <span class="menu-disabled">
+                        <img src="assets/icons/directory_closed-0.png" class="icon-16" alt="" />
+                        Documents
+                    </span>
+                    <NavLink href="" Match="NavLinkMatch.All" @onclick="CloseStartMenu">
+                        <img src="assets/icons/help_book_cool-0.png" class="icon-16" alt="" />
+                        Help
+                    </NavLink>
+                    <div class="menu-sep"></div>
+                    <NavLink href="" Match="NavLinkMatch.All" @onclick="CloseStartMenu">
+                        <img src="assets/icons/computer-0.png" class="icon-16" alt="" />
+                        Shut Down...
+                    </NavLink>
+                </div>
+            </div>
+        }
+        <NavLink href="" Match="NavLinkMatch.All" class="task-button">MHD</NavLink>
+        <NavLink href="personnel" class="task-button">Personnel</NavLink>
+        <NavLink href="aircraft" class="task-button">Aircraft</NavLink>
+        <div class="tray">
+            <TaskbarClock />
         </div>
-        *@
-
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
+    </div>
 </div>
+
+@code {
+    private bool startOpen;
+
+    protected override void OnInitialized()
+    {
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        startOpen = false;
+    }
+
+    private void ToggleStartMenu()
+    {
+        startOpen = !startOpen;
+    }
+
+    private void CloseStartMenu()
+    {
+        if (startOpen)
+        {
+            startOpen = false;
+        }
+    }
+
+    private void Refresh()
+    {
+        Nav.NavigateTo(Nav.Uri, forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+}
