@@ -158,76 +158,22 @@ else
             else if (ShowFullList)
             {
                 <Virtualize @key="@($"{SortColumn}:{SortAscending}:{View.Count}")" Items="View" Context="person" ItemSize="22" OverscanCount="40">
-                    <div class="lv-row personnel-grid @(SelectedPerson == person ? "highlighted" : null)"
-                         @onclick="@(() => SelectRow(person))"
-                         @ondblclick="@(() => ShowModal(person))">
-                        <span>@person.PerIdentification</span>
-                        <span>@person.FirstName</span>
-                        <span>@person.LastName</span>
-                        <span>
-                            @if (person.HasBio)
-                            {
-                                <button type="button" class="btn btn-sm"
-                                        @onmousedown:stopPropagation="true"
-                                        @onclick:stopPropagation="true"
-                                        @onclick="@(() => OpenBioById(person.PerIdentification))">View Bio</button>
-                            }
-                            else
-                            {
-                                <text>No Bio</text>
-                            }
-                        </span>
-                        <span>@person.PerGroup</span>
-                        <span>@person.PerSquadron</span>
-                        <span>@person.DeceasedDate</span>
-                        <span>
-                            @if (HasObituary(person))
-                            {
-                                <button type="button" class="btn btn-sm"
-                                        @onmousedown:stopPropagation="true"
-                                        @onclick:stopPropagation="true"
-                                        @onclick="@(() => OpenBioById(person.PerIdentification))">View</button>
-                            }
-                        </span>
-                    </div>
+                    <PersonnelRow Person="person"
+                                  Selected="SelectedPerson == person"
+                                  HasObituary="HasObituary(person)"
+                                  OnSelect="SelectRow"
+                                  OnViewBio="ShowModal" />
                 </Virtualize>
             }
             else
             {
                 @foreach (var person in VisibleRows)
                 {
-                    <div class="lv-row personnel-grid @(SelectedPerson == person ? "highlighted" : null)"
-                         @onclick="@(() => SelectRow(person))"
-                         @ondblclick="@(() => ShowModal(person))">
-                        <span>@person.PerIdentification</span>
-                        <span>@person.FirstName</span>
-                        <span>@person.LastName</span>
-                        <span>
-                            @if (person.HasBio)
-                            {
-                                <button type="button" class="btn btn-sm"
-                                        @onmousedown:stopPropagation="true"
-                                        @onclick:stopPropagation="true"
-                                        @onclick="@(() => OpenBioById(person.PerIdentification))">View Bio</button>
-                            }
-                            else
-                            {
-                                <text>No Bio</text>
-                            }
-                        </span>
-                        <span>@person.PerGroup</span>
-                        <span>@person.PerSquadron</span>
-                        <span>@person.DeceasedDate</span>
-                        <span>
-                            @if (HasObituary(person))
-                            {
-                                <button type="button" class="btn btn-sm"
-                                        @onmousedown:stopPropagation="true"
-                                        @onclick:stopPropagation="true"
-                                        @onclick="@(() => OpenBioById(person.PerIdentification))">View</button>
-                            }
-                        </span>
-                    </div>
+                    <PersonnelRow @key="person.PerIdentification" Person="person"
+                                  Selected="SelectedPerson == person"
+                                  HasObituary="HasObituary(person)"
+                                  OnSelect="SelectRow"
+                                  OnViewBio="ShowModal" />
                 }
             }
         </div>

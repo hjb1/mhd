@@ -1,0 +1,25 @@
+<div class="lv-row aircraft-grid @(Selected ? "highlighted" : null)">
+    <span @onclick="Select">@Aircraft.acAircraftNo</span>
+    <span @onclick="Select">@Aircraft.acAircraftLetter</span>
+    <span @onclick="Select">@Aircraft.acAircraftName</span>
+    <span @onclick="Select">@Aircraft.acBG</span>
+    <span @onclick="Select">@Aircraft.acSquadron</span>
+    <span class="clip-cell" title="@Aircraft.acFinalAircraftDisposition" @onclick="Select">@Aircraft.acFinalAircraftDisposition</span>
+    <span>
+        @if (Aircraft.acBG == "44th")
+        {
+            <button type="button" class="btn btn-sm" @onclick="ViewMissions">View Missions</button>
+        }
+    </span>
+</div>
+
+@code {
+    [Parameter] public mhd.Domain.Aircraft Aircraft { get; set; } = default!;
+    [Parameter] public bool Selected { get; set; }
+    [Parameter] public EventCallback<mhd.Domain.Aircraft> OnSelect { get; set; }
+    [Parameter] public EventCallback<mhd.Domain.Aircraft> OnViewMissions { get; set; }
+
+    private Task Select() => OnSelect.InvokeAsync(Aircraft);
+
+    private Task ViewMissions() => OnViewMissions.InvokeAsync(Aircraft);
+}

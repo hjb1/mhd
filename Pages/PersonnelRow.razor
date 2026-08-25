@@ -1,0 +1,36 @@
+<div class="lv-row personnel-grid @(Selected ? "highlighted" : null)">
+    <span @onclick="Select">@Person.PerIdentification</span>
+    <span @onclick="Select">@Person.FirstName</span>
+    <span @onclick="Select">@Person.LastName</span>
+    <span>
+        @if (Person.HasBio)
+        {
+            <button type="button" class="btn btn-sm" @onclick="ViewBio">View Bio</button>
+        }
+        else
+        {
+            <text>No Bio</text>
+        }
+    </span>
+    <span @onclick="Select">@Person.PerGroup</span>
+    <span @onclick="Select">@Person.PerSquadron</span>
+    <span @onclick="Select">@Person.DeceasedDate</span>
+    <span>
+        @if (HasObituary)
+        {
+            <button type="button" class="btn btn-sm" @onclick="ViewBio">View</button>
+        }
+    </span>
+</div>
+
+@code {
+    [Parameter] public PersonnelSummary Person { get; set; } = default!;
+    [Parameter] public bool Selected { get; set; }
+    [Parameter] public bool HasObituary { get; set; }
+    [Parameter] public EventCallback<PersonnelSummary> OnSelect { get; set; }
+    [Parameter] public EventCallback<PersonnelSummary> OnViewBio { get; set; }
+
+    private Task Select() => OnSelect.InvokeAsync(Person);
+
+    private Task ViewBio() => OnViewBio.InvokeAsync(Person);
+}

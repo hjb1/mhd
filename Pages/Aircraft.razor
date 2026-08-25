@@ -136,50 +136,20 @@ else
             else if (ShowFullList)
             {
                 <Virtualize @key="@($"{SortColumn}:{SortAscending}:{View.Count}")" Items="View" Context="aircraft" ItemSize="22" OverscanCount="40">
-                    <div class="lv-row aircraft-grid @(SelectedAirCraft == aircraft ? "highlighted" : null)"
-                         @onclick="@(() => SelectRow(aircraft))"
-                         @ondblclick="@(() => OpenSelectedAsync())">
-                        <span>@aircraft.acAircraftNo</span>
-                        <span>@aircraft.acAircraftLetter</span>
-                        <span>@aircraft.acAircraftName</span>
-                        <span>@aircraft.acBG</span>
-                        <span>@aircraft.acSquadron</span>
-                        <span class="clip-cell" title="@aircraft.acFinalAircraftDisposition">@aircraft.acFinalAircraftDisposition</span>
-                        <span>
-                            @if (aircraft.acBG == "44th")
-                            {
-                                <button type="button" class="btn btn-sm"
-                                        @onmousedown:stopPropagation="true"
-                                        @onclick:stopPropagation="true"
-                                        @onclick="@(() => OpenMissionsByNo(aircraft.acAircraftNo))">View Missions</button>
-                            }
-                        </span>
-                    </div>
+                    <AircraftRow Aircraft="aircraft"
+                                 Selected="SelectedAirCraft == aircraft"
+                                 OnSelect="SelectRow"
+                                 OnViewMissions="ShowModal" />
                 </Virtualize>
             }
             else
             {
                 @foreach (var aircraft in VisibleRows)
                 {
-                    <div class="lv-row aircraft-grid @(SelectedAirCraft == aircraft ? "highlighted" : null)"
-                         @onclick="@(() => SelectRow(aircraft))"
-                         @ondblclick="@(() => OpenSelectedAsync())">
-                        <span>@aircraft.acAircraftNo</span>
-                        <span>@aircraft.acAircraftLetter</span>
-                        <span>@aircraft.acAircraftName</span>
-                        <span>@aircraft.acBG</span>
-                        <span>@aircraft.acSquadron</span>
-                        <span class="clip-cell" title="@aircraft.acFinalAircraftDisposition">@aircraft.acFinalAircraftDisposition</span>
-                        <span>
-                            @if (aircraft.acBG == "44th")
-                            {
-                                <button type="button" class="btn btn-sm"
-                                        @onmousedown:stopPropagation="true"
-                                        @onclick:stopPropagation="true"
-                                        @onclick="@(() => OpenMissionsByNo(aircraft.acAircraftNo))">View Missions</button>
-                            }
-                        </span>
-                    </div>
+                    <AircraftRow @key="aircraft.acAircraftNo" Aircraft="aircraft"
+                                 Selected="SelectedAirCraft == aircraft"
+                                 OnSelect="SelectRow"
+                                 OnViewMissions="ShowModal" />
                 }
             }
         </div>
