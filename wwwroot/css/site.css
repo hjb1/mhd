@@ -631,6 +631,54 @@ img.icon-32,
     align-items: center;
 }
 
+.win-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 5000;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 48px 16px 16px;
+}
+
+.win-dialog {
+    width: min(920px, 94vw);
+    max-height: calc(100vh - 72px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.win-dialog .card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.win-dialog .card-header h5 {
+    flex: 1;
+    margin: 0;
+    font-size: 13px;
+}
+
+.win-dialog-body {
+    padding: 10px;
+    overflow: auto;
+    background: silver;
+    color: #000;
+    flex: 1;
+}
+
+.win-dialog-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    flex-shrink: 0;
+}
+
 @media (max-width: 640.98px) {
     .desktop {
         padding: 0 0 36px;

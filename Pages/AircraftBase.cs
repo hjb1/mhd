@@ -1,5 +1,4 @@
 using System.Timers;
-using Blazorise;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using mhd.Domain;
@@ -20,7 +19,7 @@ namespace mhd.Pages
 
         protected List<mhd.Domain.Aircraft> aircraftList { get; set; } = new();
         protected List<mhd.Domain.Aircraft> View { get; set; } = new();
-        protected Modal aircraftMissionsModalRef = default!;
+        protected bool ShowMissionsDialog { get; set; }
         protected mhd.Domain.Aircraft SelectedAirCraft { get; set; } = new();
         protected mhd.Domain.Aircraft missionCrewSummaries { get; set; } = new()
         {
@@ -164,7 +163,7 @@ namespace mhd.Pages
             SelectedAirCraft = selectedAirCraftRow;
             ExpandedMissionNo = null;
             MissionsLoading = true;
-            await aircraftMissionsModalRef.Show();
+            ShowMissionsDialog = true;
 
             try
             {
@@ -177,6 +176,15 @@ namespace mhd.Pages
                     .Where(p => !string.IsNullOrEmpty(p.PerIdentification))
                     .GroupBy(p => p.PerIdentification)
                     .ToDictionary(g => g.Key, g => FormatName(g.First()));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Mission load failed for {Aircraft}", selectedAirCraftRow.acAircraftNo);
+                missionCrewSummaries = new mhd.Domain.Aircraft
+                {
+                    acAircraftNo = selectedAirCraftRow.acAircraftNo,
+                    Mission = new List<Mission>()
+                };
             }
             finally
             {
@@ -200,9 +208,9 @@ namespace mhd.Pages
             return crew.perIdentification ?? string.Empty;
         }
 
-        protected Task HideModal()
+        protected void HideModal()
         {
-            return aircraftMissionsModalRef.Hide();
+            ShowMissionsDialog = false;
         }
 
         private void ApplyView()

@@ -3,9 +3,10 @@
 @inherits PersonnelBase
 <PageTitle>Personnel</PageTitle>
 
-<Modal @ref="bioModalRef" ScrollToTop="false">
-    <ModalContent Size="ModalSize.ExtraLarge">
-        <ModalHeader>
+@if (ShowBioDialog)
+{
+    <div class="win-dialog-backdrop" @onclick="HideModal">
+        <div class="win-dialog card" @onclick:stopPropagation="true">
             <div class="card-header">
                 <img src="assets/icons/address_book_user.png" class="icon-16" alt="" />
                 <h5>
@@ -18,15 +19,16 @@
                         <text>Bio Information</text>
                     }
                 </h5>
-                <button type="button" class="close" @onclick="HideModal" aria-label="Close">
-                    <span>&times;</span>
-                </button>
+                <button type="button" class="btn window-btn" @onclick="HideModal" aria-label="Close">x</button>
             </div>
-        </ModalHeader>
-        <ModalBody>
+            <div class="win-dialog-body">
             @if (SelectedPerson == null)
             {
                 <span>No record selected.</span>
+            }
+            else if (BioLoading)
+            {
+                <p><em>Reading bio record…</em></p>
             }
             else
             {
@@ -105,13 +107,14 @@
                     }
                 </div>
             }
-        </ModalBody>
-        <ModalFooter>
-            <span class="small font-italic">* not all bio data available is displayed.</span>
-            <button type="button" class="btn" @onclick="HideModal">OK</button>
-        </ModalFooter>
-    </ModalContent>
-</Modal>
+            </div>
+            <div class="win-dialog-footer">
+                <span class="small font-italic">* not all bio data available is displayed.</span>
+                <button type="button" class="btn" @onclick="HideModal">OK</button>
+            </div>
+        </div>
+    </div>
+}
 
 <div class="page-fill">
 <div class="list-toolbar">

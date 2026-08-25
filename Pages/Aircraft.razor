@@ -3,18 +3,16 @@
 @inherits AircraftBase
 <PageTitle>Aircraft</PageTitle>
 
-<Modal @ref="aircraftMissionsModalRef" ScrollToTop="false">
-    <ModalContent Size="ModalSize.ExtraLarge">
-        <ModalHeader>
+@if (ShowMissionsDialog)
+{
+    <div class="win-dialog-backdrop" @onclick="HideModal">
+        <div class="win-dialog card" @onclick:stopPropagation="true">
             <div class="card-header">
                 <img src="assets/icons/cd_drive-0.png" class="icon-16" alt="" />
                 <h5>Missions for Aircraft @SelectedAirCraft.acAircraftNo</h5>
-                <button type="button" class="close" @onclick="HideModal" aria-label="Close">
-                    <span>&times;</span>
-                </button>
+                <button type="button" class="btn window-btn" @onclick="HideModal" aria-label="Close">x</button>
             </div>
-        </ModalHeader>
-        <ModalBody>
+            <div class="win-dialog-body">
             @if (MissionsLoading)
             {
                 <p><em>Reading mission records...</em></p>
@@ -89,12 +87,13 @@
                     </tbody>
                 </table>
             }
-        </ModalBody>
-        <ModalFooter>
-            <button type="button" class="btn" @onclick="HideModal">OK</button>
-        </ModalFooter>
-    </ModalContent>
-</Modal>
+            </div>
+            <div class="win-dialog-footer">
+                <button type="button" class="btn" @onclick="HideModal">OK</button>
+            </div>
+        </div>
+    </div>
+}
 
 <div class="page-fill">
 <div class="list-toolbar">

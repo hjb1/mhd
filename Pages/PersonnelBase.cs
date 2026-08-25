@@ -1,5 +1,4 @@
 using System.Timers;
-using Blazorise;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using mhd.Domain;
@@ -21,8 +20,9 @@ namespace mhd.Pages
         protected List<PersonnelSummary> PersonnelList { get; set; } = new();
         protected List<PersonnelSummary> View { get; set; } = new();
         protected Bio? bioData;
-        protected Modal bioModalRef = default!;
         protected PersonnelSummary? SelectedPerson { get; set; }
+        protected bool ShowBioDialog { get; set; }
+        protected bool BioLoading { get; set; }
         protected string Filter { get; set; } = string.Empty;
         protected bool BiosOnly { get; set; }
         protected string SortColumn { get; set; } = "LastName";
@@ -158,13 +158,28 @@ namespace mhd.Pages
         {
             SelectedPerson = selectedPersonnel;
             BioTab = 0;
-            bioData = await MHDService.LoadBioAsync(selectedPersonnel.PerIdentification);
-            await bioModalRef.Show();
+            bioData = null;
+            BioLoading = true;
+            ShowBioDialog = true;
+
+            try
+            {
+                bioData = await MHDService.LoadBioAsync(selectedPersonnel.PerIdentification);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Bio load failed for {Id}", selectedPersonnel.PerIdentification);
+                bioData = null;
+            }
+            finally
+            {
+                BioLoading = false;
+            }
         }
 
-        protected Task HideModal()
+        protected void HideModal()
         {
-            return bioModalRef.Hide();
+            ShowBioDialog = false;
         }
 
         protected static bool HasObituary(PersonnelSummary person) =>
