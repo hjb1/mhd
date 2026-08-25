@@ -77,35 +77,22 @@ public class MHDService : IMHDService
             .Where(b => b.perIdentification != null)
             .Select(b => b.perIdentification)
             .ToListAsync(cancellationToken);
+        var personnelTask = personnelContext.Personnel.ToListAsync(cancellationToken);
+        await Task.WhenAll(bioIdsTask, personnelTask);
 
-        HashSet<string>? bioIds = null;
-        var flushed = 0;
-
-        await foreach (var d in personnelContext.Personnel.AsAsyncEnumerable().WithCancellation(cancellationToken))
+        var bioIds = bioIdsTask.Result.ToHashSet();
+        foreach (var d in personnelTask.Result)
         {
-            if (bioIds == null && bioIdsTask.IsCompletedSuccessfully)
-            {
-                bioIds = (await bioIdsTask).ToHashSet();
-            }
-
             if (d.DeceasedDate == "12/30/1899")
             {
                 d.DeceasedDate = "";
             }
 
-            destination.Add(new PersonnelSummary(d, bioIds != null && bioIds.Contains(d.perIdentification)));
-
-            if (ShouldFlush(destination.Count, flushed))
+            destination.Add(new PersonnelSummary(d, bioIds.Contains(d.perIdentification)));
+            if (destination.Count == 40 || destination.Count % 500 == 0)
             {
-                flushed = destination.Count;
-                progress?.Report(flushed);
+                progress?.Report(destination.Count);
             }
-        }
-
-        bioIds ??= (await bioIdsTask).ToHashSet();
-        foreach (var person in destination)
-        {
-            person.HasBio = !string.IsNullOrEmpty(person.PerIdentification) && bioIds.Contains(person.PerIdentification);
         }
 
         destination.Sort((a, b) =>
@@ -136,9 +123,9 @@ public class MHDService : IMHDService
         }
 
         using var context = factory.CreateDbContext();
-        var flushed = 0;
+        var aircraftList = await context.Aircraft.ToListAsync(cancellationToken);
 
-        await foreach (var aircraft in context.Aircraft.AsAsyncEnumerable().WithCancellation(cancellationToken))
+        foreach (var aircraft in aircraftList)
         {
             if (aircraft.acFinalAircraftDisposition == "Aircraft Final Disposition")
             {
@@ -146,11 +133,9 @@ public class MHDService : IMHDService
             }
 
             destination.Add(aircraft);
-
-            if (ShouldFlush(destination.Count, flushed))
+            if (destination.Count == 40 || destination.Count % 200 == 0)
             {
-                flushed = destination.Count;
-                progress?.Report(flushed);
+                progress?.Report(destination.Count);
             }
         }
 
@@ -158,9 +143,6 @@ public class MHDService : IMHDService
         cache.Set(AircraftCacheKey, destination.ToList(), CacheDuration);
         progress?.Report(destination.Count);
     }
-
-    private static bool ShouldFlush(int count, int flushed) =>
-        count == 40 || (count - flushed) >= 200;
 
     public async Task<Aircraft> LoadAircraftMissionCrewSummaryAsync(string aircraftNo)
     {

@@ -33,20 +33,26 @@ namespace mhd.Pages
         private Timer? debounce;
         private CancellationTokenSource? loadCts;
         private bool pendingVirtualizeRefresh;
+        private bool loadStarted;
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            if (firstRender)
+            if (!loadStarted)
             {
                 try
                 {
-                    await JSRuntime.InvokeVoidAsync("eval", "null");
+                    await JSRuntime.InvokeAsync<int>("mhd.ping");
                 }
                 catch (InvalidOperationException)
                 {
                     return;
                 }
+                catch (JSDisconnectedException)
+                {
+                    return;
+                }
 
+                loadStarted = true;
                 await ReloadAsync(invalidate: false);
                 return;
             }
