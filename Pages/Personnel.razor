@@ -137,14 +137,14 @@ else
 {
     <div class="listview">
         <div class="listview-header personnel-grid">
-            <button type="button" class="lv-col" @onclick="@(() => SortBy("PerIdentification"))">ID @SortMark("PerIdentification")</button>
-            <button type="button" class="lv-col" @onclick="@(() => SortBy("FirstName"))">First Name @SortMark("FirstName")</button>
-            <button type="button" class="lv-col" @onclick="@(() => SortBy("LastName"))">Last Name @SortMark("LastName")</button>
-            <button type="button" class="lv-col" @onclick="@(() => SortBy("HasBio"))">Bio @SortMark("HasBio")</button>
-            <button type="button" class="lv-col" @onclick="@(() => SortBy("PerGroup"))">Flight Group @SortMark("PerGroup")</button>
-            <button type="button" class="lv-col" @onclick="@(() => SortBy("PerSquadron"))">Squadron @SortMark("PerSquadron")</button>
-            <button type="button" class="lv-col" @onclick="@(() => SortBy("DeceasedDate"))">Deceased @SortMark("DeceasedDate")</button>
-            <span class="lv-col">Obituary</span>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("PerIdentification"))">ID @SortMark("PerIdentification")</button>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("FirstName"))">First Name @SortMark("FirstName")</button>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("LastName"))">Last Name @SortMark("LastName")</button>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("HasBio"))">Bio @SortMark("HasBio")</button>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("PerGroup"))">Flight Group @SortMark("PerGroup")</button>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("PerSquadron"))">Squadron @SortMark("PerSquadron")</button>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("DeceasedDate"))">Deceased @SortMark("DeceasedDate")</button>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("Obituary"))">Obituary @SortMark("Obituary")</button>
         </div>
         <div class="sunken-panel listview-body">
             @if (IsScanning)
@@ -157,7 +157,7 @@ else
             }
             else if (ShowFullList)
             {
-                <Virtualize Items="View" Context="person" ItemSize="22" OverscanCount="40">
+                <Virtualize @key="@($"{SortColumn}:{SortAscending}:{View.Count}")" Items="View" Context="person" ItemSize="22" OverscanCount="40">
                     <div class="lv-row personnel-grid @(SelectedPerson == person ? "highlighted" : null)"
                          @onclick="@(() => SelectRow(person))"
                          @ondblclick="@(() => ShowModal(person))">

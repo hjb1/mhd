@@ -129,6 +129,7 @@ namespace mhd.Pages
             }
 
             ApplyView();
+            StateHasChanged();
         }
 
         protected string SortMark(string column)
@@ -229,6 +230,8 @@ namespace mhd.Pages
                 ("PerSquadron", false) => query.OrderByDescending(p => p.PerSquadron),
                 ("DeceasedDate", true) => query.OrderBy(p => p.DeceasedDate),
                 ("DeceasedDate", false) => query.OrderByDescending(p => p.DeceasedDate),
+                ("Obituary", true) => query.OrderByDescending(p => HasObituary(p)).ThenBy(p => p.LastName),
+                ("Obituary", false) => query.OrderBy(p => HasObituary(p)).ThenBy(p => p.LastName),
                 ("LastName", false) => query.OrderByDescending(p => p.LastName).ThenByDescending(p => p.FirstName),
                 _ => query.OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
             };

@@ -116,12 +116,12 @@ else
 {
     <div class="listview">
         <div class="listview-header aircraft-grid">
-            <button type="button" class="lv-col" @onclick="@(() => SortBy("acAircraftNo"))">Aircraft # @SortMark("acAircraftNo")</button>
-            <button type="button" class="lv-col" @onclick="@(() => SortBy("acAircraftLetter"))">Letter @SortMark("acAircraftLetter")</button>
-            <button type="button" class="lv-col" @onclick="@(() => SortBy("acAircraftName"))">Name @SortMark("acAircraftName")</button>
-            <button type="button" class="lv-col" @onclick="@(() => SortBy("acBG"))">Bomb Group @SortMark("acBG")</button>
-            <button type="button" class="lv-col" @onclick="@(() => SortBy("acSquadron"))">Squadron @SortMark("acSquadron")</button>
-            <button type="button" class="lv-col" @onclick="@(() => SortBy("acFinalAircraftDisposition"))">Disposition @SortMark("acFinalAircraftDisposition")</button>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("acAircraftNo"))">Aircraft # @SortMark("acAircraftNo")</button>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("acAircraftLetter"))">Letter @SortMark("acAircraftLetter")</button>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("acAircraftName"))">Name @SortMark("acAircraftName")</button>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("acBG"))">Bomb Group @SortMark("acBG")</button>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("acSquadron"))">Squadron @SortMark("acSquadron")</button>
+            <button type="button" class="lv-col" @onmousedown:stopPropagation="true" @onclick:stopPropagation="true" @onclick="@(() => SortBy("acFinalAircraftDisposition"))">Disposition @SortMark("acFinalAircraftDisposition")</button>
             <span class="lv-col">Missions</span>
         </div>
         <div class="sunken-panel listview-body">
@@ -135,7 +135,7 @@ else
             }
             else if (ShowFullList)
             {
-                <Virtualize Items="View" Context="aircraft" ItemSize="22" OverscanCount="40">
+                <Virtualize @key="@($"{SortColumn}:{SortAscending}:{View.Count}")" Items="View" Context="aircraft" ItemSize="22" OverscanCount="40">
                     <div class="lv-row aircraft-grid @(SelectedAirCraft == aircraft ? "highlighted" : null)"
                          @onclick="@(() => SelectRow(aircraft))"
                          @ondblclick="@(() => OpenSelectedAsync())">

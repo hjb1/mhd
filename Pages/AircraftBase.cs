@@ -133,6 +133,7 @@ namespace mhd.Pages
             }
 
             ApplyView();
+            StateHasChanged();
         }
 
         protected string SortMark(string column)
