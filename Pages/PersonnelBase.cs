@@ -161,6 +161,7 @@ namespace mhd.Pages
             bioData = null;
             BioLoading = true;
             ShowBioDialog = true;
+            await InvokeAsync(StateHasChanged);
 
             try
             {

@@ -162,20 +162,18 @@ namespace mhd.Pages
         {
             SelectedAirCraft = selectedAirCraftRow;
             ExpandedMissionNo = null;
+            missionCrewSummaries = new mhd.Domain.Aircraft
+            {
+                acAircraftNo = selectedAirCraftRow.acAircraftNo,
+                Mission = new List<Mission>()
+            };
             MissionsLoading = true;
             ShowMissionsDialog = true;
+            await InvokeAsync(StateHasChanged);
 
             try
             {
-                var missionsTask = MHDService.LoadAircraftMissionCrewSummaryAsync(selectedAirCraftRow.acAircraftNo);
-                var personnelTask = MHDService.QueryPersonnelAsync();
-                await Task.WhenAll(missionsTask, personnelTask);
-
-                missionCrewSummaries = missionsTask.Result;
-                PersonnelNames = personnelTask.Result
-                    .Where(p => !string.IsNullOrEmpty(p.PerIdentification))
-                    .GroupBy(p => p.PerIdentification)
-                    .ToDictionary(g => g.Key, g => FormatName(g.First()));
+                missionCrewSummaries = await MHDService.LoadAircraftMissionCrewSummaryAsync(selectedAirCraftRow.acAircraftNo);
             }
             catch (Exception ex)
             {
@@ -189,6 +187,20 @@ namespace mhd.Pages
             finally
             {
                 MissionsLoading = false;
+                await InvokeAsync(StateHasChanged);
+            }
+
+            try
+            {
+                var personnel = await MHDService.QueryPersonnelAsync();
+                PersonnelNames = personnel
+                    .Where(p => !string.IsNullOrEmpty(p.PerIdentification))
+                    .GroupBy(p => p.PerIdentification)
+                    .ToDictionary(g => g.Key, g => FormatName(g.First()));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Personnel name lookup failed for missions");
             }
         }
 
