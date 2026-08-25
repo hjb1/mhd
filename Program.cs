@@ -10,12 +10,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 
-// Azure SignalR is required on App Service; local Development can use the in-process hub.
-if (!builder.Environment.IsDevelopment())
-{
-    builder.Services.AddSignalR().AddAzureSignalR();
-}
-
 builder.Services.AddMemoryCache();
 
 var cosmosEndpoint = Environment.GetEnvironmentVariable("COSMOS_ENDPOINT", EnvironmentVariableTarget.Process);
