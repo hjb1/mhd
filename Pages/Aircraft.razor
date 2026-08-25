@@ -134,6 +134,27 @@ else
             {
                 <div class="empty-list">No items match your search.</div>
             }
+            else if (ShowFullList)
+            {
+                <Virtualize Items="View" Context="aircraft" ItemSize="22" OverscanCount="40">
+                    <div class="lv-row aircraft-grid @(SelectedAirCraft == aircraft ? "highlighted" : null)"
+                         @onclick="@(() => SelectRow(aircraft))"
+                         @ondblclick="@(() => OpenSelectedAsync())">
+                        <span>@aircraft.acAircraftNo</span>
+                        <span>@aircraft.acAircraftLetter</span>
+                        <span>@aircraft.acAircraftName</span>
+                        <span>@aircraft.acBG</span>
+                        <span>@aircraft.acSquadron</span>
+                        <span class="wrap-cell">@aircraft.acFinalAircraftDisposition</span>
+                        <span>
+                            @if (aircraft.acBG == "44th")
+                            {
+                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(aircraft))" @onclick:stopPropagation="true">View Missions</button>
+                            }
+                        </span>
+                    </div>
+                </Virtualize>
+            }
             else
             {
                 @foreach (var aircraft in VisibleRows)
@@ -164,9 +185,9 @@ else
             {
                 <text>Reading Aircraft.mdb…</text>
             }
-            else if (View.Count > VisibleCap)
+            else if (!ShowFullList && View.Count > VisibleCap)
             {
-                <text>@View.Count aircraft. Showing first @VisibleCap. Use Find to search all.</text>
+                <text>@View.Count aircraft. Showing first @VisibleCap. Loading the rest…</text>
             }
             else
             {

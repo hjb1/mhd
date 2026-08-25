@@ -1,6 +1,7 @@
 using System.Timers;
 using Blazorise;
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using mhd.Domain;
 using Timer = System.Timers.Timer;
 
@@ -14,6 +15,8 @@ namespace mhd.Pages
         protected IMHDService MHDService { get; set; } = default!;
         [Inject]
         protected ILogger<PersonnelBase> Logger { get; set; } = default!;
+        [Inject]
+        protected IJSRuntime JSRuntime { get; set; } = default!;
 
         protected List<PersonnelSummary> PersonnelList { get; set; } = new();
         protected List<PersonnelSummary> View { get; set; } = new();
@@ -27,6 +30,7 @@ namespace mhd.Pages
         protected string? LoadError { get; set; }
         protected int BioTab { get; set; }
         protected bool IsScanning { get; set; } = true;
+        protected bool ShowFullList { get; set; }
 
         private Timer? debounce;
 
@@ -35,6 +39,30 @@ namespace mhd.Pages
         protected override async Task OnInitializedAsync()
         {
             await ReloadAsync(invalidate: false);
+        }
+
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            if (ShowFullList || IsScanning || View.Count <= VisibleCap)
+            {
+                return;
+            }
+
+            try
+            {
+                await JSRuntime.InvokeAsync<int>("mhd.ping");
+            }
+            catch (InvalidOperationException)
+            {
+                return;
+            }
+            catch (JSDisconnectedException)
+            {
+                return;
+            }
+
+            ShowFullList = true;
+            StateHasChanged();
         }
 
         protected async Task ReloadAsync(bool invalidate)
@@ -48,6 +76,7 @@ namespace mhd.Pages
                     MHDService.InvalidateListCache();
                 }
 
+                ShowFullList = false;
                 PersonnelList = await MHDService.QueryPersonnelAsync();
                 ApplyView();
             }

@@ -1,6 +1,7 @@
 using System.Timers;
 using Blazorise;
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using mhd.Domain;
 using Timer = System.Timers.Timer;
 
@@ -14,6 +15,8 @@ namespace mhd.Pages
         protected IMHDService MHDService { get; set; } = default!;
         [Inject]
         protected ILogger<AircraftBase> Logger { get; set; } = default!;
+        [Inject]
+        protected IJSRuntime JSRuntime { get; set; } = default!;
 
         protected List<mhd.Domain.Aircraft> aircraftList { get; set; } = new();
         protected List<mhd.Domain.Aircraft> View { get; set; } = new();
@@ -31,6 +34,7 @@ namespace mhd.Pages
         protected bool SortAscending { get; set; } = true;
         protected string? LoadError { get; set; }
         protected bool IsScanning { get; set; } = true;
+        protected bool ShowFullList { get; set; }
         protected bool MissionsLoading { get; set; }
 
         private Timer? debounce;
@@ -40,6 +44,30 @@ namespace mhd.Pages
         protected override async Task OnInitializedAsync()
         {
             await ReloadAsync(invalidate: false);
+        }
+
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            if (ShowFullList || IsScanning || View.Count <= VisibleCap)
+            {
+                return;
+            }
+
+            try
+            {
+                await JSRuntime.InvokeAsync<int>("mhd.ping");
+            }
+            catch (InvalidOperationException)
+            {
+                return;
+            }
+            catch (JSDisconnectedException)
+            {
+                return;
+            }
+
+            ShowFullList = true;
+            StateHasChanged();
         }
 
         protected async Task ReloadAsync(bool invalidate)
@@ -53,6 +81,7 @@ namespace mhd.Pages
                     MHDService.InvalidateListCache();
                 }
 
+                ShowFullList = false;
                 aircraftList = await MHDService.QueryAircraftAsync();
                 ApplyView();
             }

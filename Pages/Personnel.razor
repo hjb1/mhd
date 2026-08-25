@@ -152,6 +152,37 @@ else
             {
                 <div class="empty-list">No items match your search.</div>
             }
+            else if (ShowFullList)
+            {
+                <Virtualize Items="View" Context="person" ItemSize="22" OverscanCount="40">
+                    <div class="lv-row personnel-grid @(SelectedPerson == person ? "highlighted" : null)"
+                         @onclick="@(() => SelectRow(person))"
+                         @ondblclick="@(() => ShowModal(person))">
+                        <span>@person.PerIdentification</span>
+                        <span>@person.FirstName</span>
+                        <span>@person.LastName</span>
+                        <span>
+                            @if (person.HasBio)
+                            {
+                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(person))" @onclick:stopPropagation="true">View Bio</button>
+                            }
+                            else
+                            {
+                                <text>No Bio</text>
+                            }
+                        </span>
+                        <span>@person.PerGroup</span>
+                        <span>@person.PerSquadron</span>
+                        <span>@person.DeceasedDate</span>
+                        <span>
+                            @if (HasObituary(person))
+                            {
+                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(person))" @onclick:stopPropagation="true">View</button>
+                            }
+                        </span>
+                    </div>
+                </Virtualize>
+            }
             else
             {
                 @foreach (var person in VisibleRows)
@@ -192,9 +223,9 @@ else
             {
                 <text>Reading Personnel.mdb…</text>
             }
-            else if (View.Count > VisibleCap)
+            else if (!ShowFullList && View.Count > VisibleCap)
             {
-                <text>@View.Count record(s). Showing first @VisibleCap. Use Find to search all.</text>
+                <text>@View.Count record(s). Showing first @VisibleCap. Loading the rest…</text>
             }
             else
             {
