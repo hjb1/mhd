@@ -47,7 +47,7 @@ namespace mhd.Pages
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            if (ShowFullList || IsScanning || View.Count <= VisibleCap)
+            if (ShowMissionsDialog || ShowFullList || IsScanning || View.Count <= VisibleCap)
             {
                 return;
             }
@@ -148,6 +148,12 @@ namespace mhd.Pages
         protected void SelectRow(mhd.Domain.Aircraft aircraft)
         {
             SelectedAirCraft = aircraft;
+        }
+
+        protected Task OpenMissionsByNo(string aircraftNo)
+        {
+            var aircraft = aircraftList.FirstOrDefault(a => a.acAircraftNo == aircraftNo);
+            return aircraft == null ? Task.CompletedTask : ShowModal(aircraft);
         }
 
         protected async Task OpenSelectedAsync()

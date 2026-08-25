@@ -43,7 +43,7 @@ namespace mhd.Pages
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            if (ShowFullList || IsScanning || View.Count <= VisibleCap)
+            if (ShowBioDialog || ShowFullList || IsScanning || View.Count <= VisibleCap)
             {
                 return;
             }
@@ -144,6 +144,12 @@ namespace mhd.Pages
         protected void SelectRow(PersonnelSummary person)
         {
             SelectedPerson = person;
+        }
+
+        protected Task OpenBioById(string id)
+        {
+            var person = PersonnelList.FirstOrDefault(p => p.PerIdentification == id);
+            return person == null ? Task.CompletedTask : ShowModal(person);
         }
 
         protected async Task OpenSelectedAsync()

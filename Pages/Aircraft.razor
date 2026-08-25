@@ -5,7 +5,7 @@
 
 @if (ShowMissionsDialog)
 {
-    <div class="win-dialog-backdrop" @onclick="HideModal">
+    <div class="win-dialog-backdrop" @onclick="HideModal" @onclick:stopPropagation="true">
         <div class="win-dialog card" @onclick:stopPropagation="true">
             <div class="card-header">
                 <img src="assets/icons/cd_drive-0.png" class="icon-16" alt="" />
@@ -95,7 +95,7 @@
     </div>
 }
 
-<div class="page-fill">
+<div class="page-fill" @onclick:stopPropagation="true">
 <div class="list-toolbar">
     <img src="assets/icons/search_file-0.png" class="icon-16" alt="" />
     <label for="aircraft-find">Find</label>
@@ -148,7 +148,10 @@ else
                         <span>
                             @if (aircraft.acBG == "44th")
                             {
-                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(aircraft))" @onclick:stopPropagation="true">View Missions</button>
+                                <button type="button" class="btn btn-sm"
+                                        @onmousedown:stopPropagation="true"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="@(() => OpenMissionsByNo(aircraft.acAircraftNo))">View Missions</button>
                             }
                         </span>
                     </div>
@@ -170,7 +173,10 @@ else
                         <span>
                             @if (aircraft.acBG == "44th")
                             {
-                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(aircraft))" @onclick:stopPropagation="true">View Missions</button>
+                                <button type="button" class="btn btn-sm"
+                                        @onmousedown:stopPropagation="true"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="@(() => OpenMissionsByNo(aircraft.acAircraftNo))">View Missions</button>
                             }
                         </span>
                     </div>

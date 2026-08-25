@@ -267,7 +267,7 @@ img.icon-32,
     padding: 6px;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
     color: #000;
 }
 
@@ -507,6 +507,10 @@ img.icon-32,
     color: #fff;
 }
 
+.lv-row > .action-cell {
+    overflow: visible;
+}
+
 .btn-sm {
     padding: 0 6px 2px;
     font-size: 12px;
@@ -641,13 +645,19 @@ img.icon-32,
 
 .win-dialog-backdrop {
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
     background: rgba(0, 0, 0, 0.35);
-    z-index: 5000;
+    z-index: 2147483647;
     display: flex;
     align-items: flex-start;
     justify-content: center;
     padding: 48px 16px 16px;
+    transform: none;
 }
 
 .win-dialog {
