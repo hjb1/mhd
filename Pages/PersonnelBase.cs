@@ -2,6 +2,7 @@ using System.Timers;
 using Blazorise;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web.Virtualization;
+using Microsoft.JSInterop;
 using mhd.Domain;
 using Timer = System.Timers.Timer;
 
@@ -11,6 +12,8 @@ namespace mhd.Pages
     {
         [Inject]
         protected IMHDService MHDService { get; set; } = default!;
+        [Inject]
+        protected IJSRuntime JSRuntime { get; set; } = default!;
 
         protected List<PersonnelSummary> PersonnelList { get; set; } = new();
         protected List<PersonnelSummary> View { get; set; } = new();
@@ -35,6 +38,15 @@ namespace mhd.Pages
         {
             if (firstRender)
             {
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("eval", "null");
+                }
+                catch (InvalidOperationException)
+                {
+                    return;
+                }
+
                 await ReloadAsync(invalidate: false);
                 return;
             }

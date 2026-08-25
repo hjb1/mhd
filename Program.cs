@@ -10,9 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
 
-var azureSignalR = builder.Configuration["Azure:SignalR:ConnectionString"]
-    ?? Environment.GetEnvironmentVariable("Azure__SignalR__ConnectionString");
-if (!string.IsNullOrWhiteSpace(azureSignalR))
+// Azure SignalR is required on App Service; local Development can use the in-process hub.
+if (!builder.Environment.IsDevelopment())
 {
     builder.Services.AddSignalR().AddAzureSignalR();
 }
