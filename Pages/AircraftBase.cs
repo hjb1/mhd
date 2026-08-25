@@ -1,8 +1,6 @@
 using System.Timers;
 using Blazorise;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web.Virtualization;
-using Microsoft.JSInterop;
 using mhd.Domain;
 using Timer = System.Timers.Timer;
 
@@ -10,14 +8,15 @@ namespace mhd.Pages
 {
     public class AircraftBase : ComponentBase, IDisposable
     {
+        protected const int VisibleCap = 300;
+
         [Inject]
         protected IMHDService MHDService { get; set; } = default!;
         [Inject]
-        protected IJSRuntime JSRuntime { get; set; } = default!;
+        protected ILogger<AircraftBase> Logger { get; set; } = default!;
 
         protected List<mhd.Domain.Aircraft> aircraftList { get; set; } = new();
         protected List<mhd.Domain.Aircraft> View { get; set; } = new();
-        protected Virtualize<mhd.Domain.Aircraft>? AircraftGrid;
         protected Modal aircraftMissionsModalRef = default!;
         protected mhd.Domain.Aircraft SelectedAirCraft { get; set; } = new();
         protected mhd.Domain.Aircraft missionCrewSummaries { get; set; } = new()
@@ -31,56 +30,22 @@ namespace mhd.Pages
         protected string SortColumn { get; set; } = "acAircraftNo";
         protected bool SortAscending { get; set; } = true;
         protected string? LoadError { get; set; }
-        protected bool IsLoading { get; set; } = true;
         protected bool IsScanning { get; set; } = true;
         protected bool MissionsLoading { get; set; }
 
         private Timer? debounce;
-        private CancellationTokenSource? loadCts;
-        private bool pendingVirtualizeRefresh;
-        private bool loadStarted;
 
-        protected override async Task OnAfterRenderAsync(bool firstRender)
+        protected IEnumerable<mhd.Domain.Aircraft> VisibleRows => View.Take(VisibleCap);
+
+        protected override async Task OnInitializedAsync()
         {
-            if (!loadStarted)
-            {
-                try
-                {
-                    await JSRuntime.InvokeAsync<int>("mhd.ping");
-                }
-                catch (InvalidOperationException)
-                {
-                    return;
-                }
-                catch (JSDisconnectedException)
-                {
-                    return;
-                }
-
-                loadStarted = true;
-                await ReloadAsync(invalidate: false);
-                return;
-            }
-
-            if (pendingVirtualizeRefresh && AircraftGrid != null)
-            {
-                pendingVirtualizeRefresh = false;
-                await AircraftGrid.RefreshDataAsync();
-            }
+            await ReloadAsync(invalidate: false);
         }
 
         protected async Task ReloadAsync(bool invalidate)
         {
-            loadCts?.Cancel();
-            loadCts?.Dispose();
-            loadCts = new CancellationTokenSource();
-            var token = loadCts.Token;
-
-            IsLoading = true;
             IsScanning = true;
             LoadError = null;
-            aircraftList = new List<mhd.Domain.Aircraft>();
-            View = aircraftList;
             try
             {
                 if (invalidate)
@@ -88,57 +53,20 @@ namespace mhd.Pages
                     MHDService.InvalidateListCache();
                 }
 
-                var progress = new Progress<int>(count =>
-                {
-                    if (token.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    IsLoading = false;
-                    ApplyView(duringScan: true);
-                    pendingVirtualizeRefresh = true;
-                    InvokeAsync(StateHasChanged);
-                });
-
-                await MHDService.FillAircraftAsync(aircraftList, progress, token);
-                if (token.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                ApplyView(duringScan: false);
+                aircraftList = await MHDService.QueryAircraftAsync();
+                ApplyView();
             }
-            catch (OperationCanceledException)
+            catch (Exception ex)
             {
-                return;
-            }
-            catch (Exception)
-            {
-                LoadError = "Could not open Aircraft. The database may be unavailable.";
+                Logger.LogError(ex, "Aircraft load failed");
+                LoadError = $"Could not open Aircraft. {ex.GetType().Name}: {ex.Message}";
                 aircraftList = new List<mhd.Domain.Aircraft>();
                 View = new List<mhd.Domain.Aircraft>();
             }
             finally
             {
-                IsLoading = false;
                 IsScanning = false;
-                pendingVirtualizeRefresh = true;
             }
-        }
-
-        protected ValueTask<ItemsProviderResult<mhd.Domain.Aircraft>> ProvideAircraft(ItemsProviderRequest request)
-        {
-            var snapshot = View;
-            if (snapshot.Count == 0 || request.StartIndex >= snapshot.Count)
-            {
-                return ValueTask.FromResult(new ItemsProviderResult<mhd.Domain.Aircraft>(Array.Empty<mhd.Domain.Aircraft>(), snapshot.Count));
-            }
-
-            var count = Math.Min(request.Count, snapshot.Count - request.StartIndex);
-            return ValueTask.FromResult(new ItemsProviderResult<mhd.Domain.Aircraft>(
-                snapshot.GetRange(request.StartIndex, count),
-                snapshot.Count));
         }
 
         protected void OnFilterInput(ChangeEventArgs e)
@@ -148,13 +76,9 @@ namespace mhd.Pages
             debounce?.Dispose();
             debounce = new Timer(160);
             debounce.AutoReset = false;
-            debounce.Elapsed += async (_, _) => await InvokeAsync(async () =>
+            debounce.Elapsed += async (_, _) => await InvokeAsync(() =>
             {
-                ApplyView(duringScan: IsScanning);
-                if (AircraftGrid != null)
-                {
-                    await AircraftGrid.RefreshDataAsync();
-                }
+                ApplyView();
                 StateHasChanged();
             });
             debounce.Start();
@@ -165,8 +89,7 @@ namespace mhd.Pages
             Only44th = e.Value is bool flag
                 ? flag
                 : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
-            ApplyView(duringScan: IsScanning);
-            pendingVirtualizeRefresh = true;
+            ApplyView();
         }
 
         protected void SortBy(string column)
@@ -181,8 +104,7 @@ namespace mhd.Pages
                 SortAscending = true;
             }
 
-            ApplyView(duringScan: false);
-            pendingVirtualizeRefresh = true;
+            ApplyView();
         }
 
         protected string SortMark(string column)
@@ -254,15 +176,8 @@ namespace mhd.Pages
             return aircraftMissionsModalRef.Hide();
         }
 
-        private void ApplyView(bool duringScan)
+        private void ApplyView()
         {
-            var hasFilter = Only44th || !string.IsNullOrWhiteSpace(Filter);
-            if (duringScan && !hasFilter && SortColumn == "acAircraftNo" && SortAscending)
-            {
-                View = aircraftList;
-                return;
-            }
-
             IEnumerable<mhd.Domain.Aircraft> query = aircraftList;
 
             if (Only44th)
@@ -318,8 +233,6 @@ namespace mhd.Pages
 
         public void Dispose()
         {
-            loadCts?.Cancel();
-            loadCts?.Dispose();
             debounce?.Dispose();
         }
     }

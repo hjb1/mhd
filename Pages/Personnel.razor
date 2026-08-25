@@ -144,7 +144,7 @@ else
             <span class="lv-col">Obituary</span>
         </div>
         <div class="sunken-panel listview-body">
-            @if (View.Count == 0 && IsScanning)
+            @if (IsScanning)
             {
                 <div class="empty-list">Reading Personnel.mdb…</div>
             }
@@ -154,34 +154,35 @@ else
             }
             else
             {
-                <Virtualize @ref="PersonGrid" ItemsProvider="ProvidePersonnel" ItemSize="22" OverscanCount="30">
-                    <div class="lv-row personnel-grid @(SelectedPerson == context ? "highlighted" : null)"
-                         @onclick="@(() => SelectRow(context))"
-                         @ondblclick="@(() => ShowModal(context))">
-                        <span>@context.PerIdentification</span>
-                        <span>@context.FirstName</span>
-                        <span>@context.LastName</span>
+                @foreach (var person in VisibleRows)
+                {
+                    <div class="lv-row personnel-grid @(SelectedPerson == person ? "highlighted" : null)"
+                         @onclick="@(() => SelectRow(person))"
+                         @ondblclick="@(() => ShowModal(person))">
+                        <span>@person.PerIdentification</span>
+                        <span>@person.FirstName</span>
+                        <span>@person.LastName</span>
                         <span>
-                            @if (context.HasBio)
+                            @if (person.HasBio)
                             {
-                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(context))" @onclick:stopPropagation="true">View Bio</button>
+                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(person))" @onclick:stopPropagation="true">View Bio</button>
                             }
                             else
                             {
                                 <text>No Bio</text>
                             }
                         </span>
-                        <span>@context.PerGroup</span>
-                        <span>@context.PerSquadron</span>
-                        <span>@context.DeceasedDate</span>
+                        <span>@person.PerGroup</span>
+                        <span>@person.PerSquadron</span>
+                        <span>@person.DeceasedDate</span>
                         <span>
-                            @if (HasObituary(context))
+                            @if (HasObituary(person))
                             {
-                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(context))" @onclick:stopPropagation="true">View</button>
+                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(person))" @onclick:stopPropagation="true">View</button>
                             }
                         </span>
                     </div>
-                </Virtualize>
+                }
             }
         </div>
     </div>
@@ -189,12 +190,15 @@ else
         <span class="status-field">
             @if (IsScanning)
             {
-                <text>Scanning… @PersonnelList.Count record(s)</text>
+                <text>Reading Personnel.mdb…</text>
+            }
+            else if (View.Count > VisibleCap)
+            {
+                <text>@View.Count record(s). Showing first @VisibleCap. Use Find to search all.</text>
             }
             else
             {
                 @View.Count <text>record(s)</text>
-                @(View.Count == PersonnelList.Count ? string.Empty : $" of {PersonnelList.Count}")
             }
         </span>
         <span class="status-field">@(SelectedPerson == null ? "Ready" : $"{SelectedPerson.LastName}, {SelectedPerson.FirstName}")</span>

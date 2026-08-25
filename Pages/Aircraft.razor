@@ -126,7 +126,7 @@ else
             <span class="lv-col">Missions</span>
         </div>
         <div class="sunken-panel listview-body">
-            @if (View.Count == 0 && IsScanning)
+            @if (IsScanning)
             {
                 <div class="empty-list">Reading Aircraft.mdb…</div>
             }
@@ -136,24 +136,25 @@ else
             }
             else
             {
-                <Virtualize @ref="AircraftGrid" ItemsProvider="ProvideAircraft" ItemSize="22" OverscanCount="30">
-                    <div class="lv-row aircraft-grid @(SelectedAirCraft == context ? "highlighted" : null)"
-                         @onclick="@(() => SelectRow(context))"
+                @foreach (var aircraft in VisibleRows)
+                {
+                    <div class="lv-row aircraft-grid @(SelectedAirCraft == aircraft ? "highlighted" : null)"
+                         @onclick="@(() => SelectRow(aircraft))"
                          @ondblclick="@(() => OpenSelectedAsync())">
-                        <span>@context.acAircraftNo</span>
-                        <span>@context.acAircraftLetter</span>
-                        <span>@context.acAircraftName</span>
-                        <span>@context.acBG</span>
-                        <span>@context.acSquadron</span>
-                        <span class="wrap-cell">@context.acFinalAircraftDisposition</span>
+                        <span>@aircraft.acAircraftNo</span>
+                        <span>@aircraft.acAircraftLetter</span>
+                        <span>@aircraft.acAircraftName</span>
+                        <span>@aircraft.acBG</span>
+                        <span>@aircraft.acSquadron</span>
+                        <span class="wrap-cell">@aircraft.acFinalAircraftDisposition</span>
                         <span>
-                            @if (context.acBG == "44th")
+                            @if (aircraft.acBG == "44th")
                             {
-                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(context))" @onclick:stopPropagation="true">View Missions</button>
+                                <button type="button" class="btn btn-sm" @onclick="@(() => ShowModal(aircraft))" @onclick:stopPropagation="true">View Missions</button>
                             }
                         </span>
                     </div>
-                </Virtualize>
+                }
             }
         </div>
     </div>
@@ -161,12 +162,15 @@ else
         <span class="status-field">
             @if (IsScanning)
             {
-                <text>Scanning… @aircraftList.Count aircraft</text>
+                <text>Reading Aircraft.mdb…</text>
+            }
+            else if (View.Count > VisibleCap)
+            {
+                <text>@View.Count aircraft. Showing first @VisibleCap. Use Find to search all.</text>
             }
             else
             {
                 @View.Count <text>aircraft</text>
-                @(View.Count == aircraftList.Count ? string.Empty : $" of {aircraftList.Count}")
             }
         </span>
         <span class="status-field">@(string.IsNullOrEmpty(SelectedAirCraft.acAircraftNo) ? "Ready" : SelectedAirCraft.acAircraftNo)</span>

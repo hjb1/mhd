@@ -1,8 +1,6 @@
 using System.Timers;
 using Blazorise;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web.Virtualization;
-using Microsoft.JSInterop;
 using mhd.Domain;
 using Timer = System.Timers.Timer;
 
@@ -10,14 +8,15 @@ namespace mhd.Pages
 {
     public class PersonnelBase : ComponentBase, IDisposable
     {
+        protected const int VisibleCap = 300;
+
         [Inject]
         protected IMHDService MHDService { get; set; } = default!;
         [Inject]
-        protected IJSRuntime JSRuntime { get; set; } = default!;
+        protected ILogger<PersonnelBase> Logger { get; set; } = default!;
 
         protected List<PersonnelSummary> PersonnelList { get; set; } = new();
         protected List<PersonnelSummary> View { get; set; } = new();
-        protected Virtualize<PersonnelSummary>? PersonGrid;
         protected Bio? bioData;
         protected Modal bioModalRef = default!;
         protected PersonnelSummary? SelectedPerson { get; set; }
@@ -27,55 +26,21 @@ namespace mhd.Pages
         protected bool SortAscending { get; set; } = true;
         protected string? LoadError { get; set; }
         protected int BioTab { get; set; }
-        protected bool IsLoading { get; set; } = true;
         protected bool IsScanning { get; set; } = true;
 
         private Timer? debounce;
-        private CancellationTokenSource? loadCts;
-        private bool pendingVirtualizeRefresh;
-        private bool loadStarted;
 
-        protected override async Task OnAfterRenderAsync(bool firstRender)
+        protected IEnumerable<PersonnelSummary> VisibleRows => View.Take(VisibleCap);
+
+        protected override async Task OnInitializedAsync()
         {
-            if (!loadStarted)
-            {
-                try
-                {
-                    await JSRuntime.InvokeAsync<int>("mhd.ping");
-                }
-                catch (InvalidOperationException)
-                {
-                    return;
-                }
-                catch (JSDisconnectedException)
-                {
-                    return;
-                }
-
-                loadStarted = true;
-                await ReloadAsync(invalidate: false);
-                return;
-            }
-
-            if (pendingVirtualizeRefresh && PersonGrid != null)
-            {
-                pendingVirtualizeRefresh = false;
-                await PersonGrid.RefreshDataAsync();
-            }
+            await ReloadAsync(invalidate: false);
         }
 
         protected async Task ReloadAsync(bool invalidate)
         {
-            loadCts?.Cancel();
-            loadCts?.Dispose();
-            loadCts = new CancellationTokenSource();
-            var token = loadCts.Token;
-
-            IsLoading = true;
             IsScanning = true;
             LoadError = null;
-            PersonnelList = new List<PersonnelSummary>();
-            View = PersonnelList;
             try
             {
                 if (invalidate)
@@ -83,57 +48,20 @@ namespace mhd.Pages
                     MHDService.InvalidateListCache();
                 }
 
-                var progress = new Progress<int>(count =>
-                {
-                    if (token.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    IsLoading = false;
-                    ApplyView(duringScan: true);
-                    pendingVirtualizeRefresh = true;
-                    InvokeAsync(StateHasChanged);
-                });
-
-                await MHDService.FillPersonnelAsync(PersonnelList, progress, token);
-                if (token.IsCancellationRequested)
-                {
-                    return;
-                }
-
-                ApplyView(duringScan: false);
+                PersonnelList = await MHDService.QueryPersonnelAsync();
+                ApplyView();
             }
-            catch (OperationCanceledException)
+            catch (Exception ex)
             {
-                return;
-            }
-            catch (Exception)
-            {
-                LoadError = "Could not open Personnel. The database may be unavailable.";
+                Logger.LogError(ex, "Personnel load failed");
+                LoadError = $"Could not open Personnel. {ex.GetType().Name}: {ex.Message}";
                 PersonnelList = new List<PersonnelSummary>();
                 View = new List<PersonnelSummary>();
             }
             finally
             {
-                IsLoading = false;
                 IsScanning = false;
-                pendingVirtualizeRefresh = true;
             }
-        }
-
-        protected ValueTask<ItemsProviderResult<PersonnelSummary>> ProvidePersonnel(ItemsProviderRequest request)
-        {
-            var snapshot = View;
-            if (snapshot.Count == 0 || request.StartIndex >= snapshot.Count)
-            {
-                return ValueTask.FromResult(new ItemsProviderResult<PersonnelSummary>(Array.Empty<PersonnelSummary>(), snapshot.Count));
-            }
-
-            var count = Math.Min(request.Count, snapshot.Count - request.StartIndex);
-            return ValueTask.FromResult(new ItemsProviderResult<PersonnelSummary>(
-                snapshot.GetRange(request.StartIndex, count),
-                snapshot.Count));
         }
 
         protected void OnFilterInput(ChangeEventArgs e)
@@ -143,13 +71,9 @@ namespace mhd.Pages
             debounce?.Dispose();
             debounce = new Timer(160);
             debounce.AutoReset = false;
-            debounce.Elapsed += async (_, _) => await InvokeAsync(async () =>
+            debounce.Elapsed += async (_, _) => await InvokeAsync(() =>
             {
-                ApplyView(duringScan: IsScanning);
-                if (PersonGrid != null)
-                {
-                    await PersonGrid.RefreshDataAsync();
-                }
+                ApplyView();
                 StateHasChanged();
             });
             debounce.Start();
@@ -160,8 +84,7 @@ namespace mhd.Pages
             BiosOnly = e.Value is bool flag
                 ? flag
                 : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
-            ApplyView(duringScan: IsScanning);
-            pendingVirtualizeRefresh = true;
+            ApplyView();
         }
 
         protected void SortBy(string column)
@@ -176,8 +99,7 @@ namespace mhd.Pages
                 SortAscending = true;
             }
 
-            ApplyView(duringScan: false);
-            pendingVirtualizeRefresh = true;
+            ApplyView();
         }
 
         protected string SortMark(string column)
@@ -222,15 +144,8 @@ namespace mhd.Pages
         protected static string Display(string? value) =>
             string.IsNullOrWhiteSpace(value) ? string.Empty : value;
 
-        private void ApplyView(bool duringScan)
+        private void ApplyView()
         {
-            var hasFilter = BiosOnly || !string.IsNullOrWhiteSpace(Filter);
-            if (duringScan && !hasFilter && SortColumn == "LastName" && SortAscending)
-            {
-                View = PersonnelList;
-                return;
-            }
-
             IEnumerable<PersonnelSummary> query = PersonnelList;
 
             if (BiosOnly)
@@ -275,8 +190,6 @@ namespace mhd.Pages
 
         public void Dispose()
         {
-            loadCts?.Cancel();
-            loadCts?.Dispose();
             debounce?.Dispose();
         }
     }

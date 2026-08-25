@@ -467,9 +467,9 @@ img.icon-32,
 
 .listview-body {
     flex: 1 1 auto;
-    height: 0;
+    height: calc(100vh - 230px);
     min-height: 180px;
-    overflow-y: scroll;
+    overflow-y: auto;
     background: #fff;
 }
 
