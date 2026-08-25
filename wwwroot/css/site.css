@@ -483,11 +483,19 @@ img.icon-32,
 }
 
 .lv-row > * {
+    min-width: 0;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
     padding: 0 6px;
     line-height: 22px;
+}
+
+.clip-cell {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .lv-row:nth-child(even):not(.highlighted) {
