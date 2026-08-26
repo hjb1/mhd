@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.JSInterop;
 using mhd.Domain;
 
@@ -13,7 +14,12 @@ namespace mhd.Pages
         [Inject]
         protected ILogger<PersonnelBase> Logger { get; set; } = default!;
         [Inject]
+        protected NavigationManager Nav { get; set; } = default!;
+        [Inject]
         protected IJSRuntime JSRuntime { get; set; } = default!;
+
+        protected string? SelectId { get; set; }
+        protected int FindEpoch { get; set; }
 
         protected List<PersonnelSummary> PersonnelList { get; set; } = new();
         protected List<PersonnelSummary> View { get; set; } = new();
@@ -23,6 +29,7 @@ namespace mhd.Pages
         protected bool BioLoading { get; set; }
         protected string Filter { get; set; } = string.Empty;
         protected bool BiosOnly { get; set; }
+        protected bool KiaOnly { get; set; }
         protected string SortColumn { get; set; } = "LastName";
         protected bool SortAscending { get; set; } = true;
         protected string? LoadError { get; set; }
@@ -31,50 +38,73 @@ namespace mhd.Pages
         protected bool ShowFullList { get; set; }
 
         private CancellationTokenSource? debounceCts;
+        private readonly CancellationTokenSource lifetimeCts = new();
         private bool disposed;
+        private string? appliedSelect;
+        private bool pendingScroll;
 
         protected IEnumerable<PersonnelSummary> VisibleRows => View.Take(VisibleCap);
 
         protected override async Task OnInitializedAsync()
         {
+            Nav.LocationChanged += OnLocationChanged;
             await ReloadAsync(invalidate: false);
+        }
+
+        protected override Task OnParametersSetAsync()
+        {
+            ApplyIncomingSelect();
+            return Task.CompletedTask;
+        }
+
+        private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+        {
+            _ = InvokeAsync(() =>
+            {
+                ApplyIncomingSelect();
+                StateHasChanged();
+            });
         }
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            if (disposed || ShowBioDialog || ShowFullList || IsScanning || View.Count <= VisibleCap)
+            if (firstRender && !disposed && string.IsNullOrWhiteSpace(appliedSelect))
+            {
+                ApplyIncomingSelect();
+                if (!string.IsNullOrWhiteSpace(appliedSelect))
+                {
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+
+            if (!pendingScroll || disposed || string.IsNullOrWhiteSpace(appliedSelect))
             {
                 return;
             }
 
+            pendingScroll = false;
             try
             {
-                await JSRuntime.InvokeAsync<int>("mhd.ping");
-                if (disposed)
-                {
-                    return;
-                }
-
-                ShowFullList = true;
-                await InvokeAsync(StateHasChanged);
-            }
-            catch (ObjectDisposedException)
-            {
+                await JSRuntime.InvokeAsync<int>("mhd.scrollPerson", appliedSelect);
             }
             catch (JSDisconnectedException)
+            {
+            }
+            catch (ObjectDisposedException)
             {
             }
             catch (InvalidOperationException)
             {
             }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Personnel after-render skipped");
-            }
         }
 
         protected async Task ReloadAsync(bool invalidate)
         {
+            if (disposed)
+            {
+                return;
+            }
+
             IsScanning = true;
             LoadError = null;
             try
@@ -86,15 +116,24 @@ namespace mhd.Pages
 
                 ShowFullList = false;
                 PersonnelList = await MHDService.QueryPersonnelAsync();
-                if (disposed)
+                if (disposed || lifetimeCts.IsCancellationRequested)
                 {
                     return;
                 }
 
                 ApplyView();
+                ShowFullList = true;
+            }
+            catch (OperationCanceledException)
+            {
             }
             catch (Exception ex)
             {
+                if (disposed)
+                {
+                    return;
+                }
+
                 Logger.LogError(ex, "Personnel load failed");
                 LoadError = $"Could not open Personnel. {ex.GetType().Name}: {ex.Message}";
                 PersonnelList = new List<PersonnelSummary>();
@@ -102,7 +141,11 @@ namespace mhd.Pages
             }
             finally
             {
-                IsScanning = false;
+                if (!disposed)
+                {
+                    IsScanning = false;
+                    ApplyIncomingSelect();
+                }
             }
         }
 
@@ -136,10 +179,16 @@ namespace mhd.Pages
                     StateHasChanged();
                 });
             }
-            catch (TaskCanceledException)
+            catch (OperationCanceledException)
             {
             }
             catch (ObjectDisposedException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+            catch (InvalidOperationException)
             {
             }
         }
@@ -147,6 +196,14 @@ namespace mhd.Pages
         protected void OnBiosOnlyChanged(ChangeEventArgs e)
         {
             BiosOnly = e.Value is bool flag
+                ? flag
+                : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+            ApplyView();
+        }
+
+        protected void OnKiaOnlyChanged(ChangeEventArgs e)
+        {
+            KiaOnly = e.Value is bool flag
                 ? flag
                 : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
             ApplyView();
@@ -183,6 +240,43 @@ namespace mhd.Pages
             SelectedPerson = person;
         }
 
+        private void ApplyIncomingSelect()
+        {
+            SelectId = QueryString.Get(Nav, "select") ?? SelectId;
+            if (disposed || PersonnelList.Count == 0 || string.IsNullOrWhiteSpace(SelectId))
+            {
+                return;
+            }
+
+            if (appliedSelect == SelectId && SelectedPerson?.PerIdentification == SelectId)
+            {
+                pendingScroll = true;
+                return;
+            }
+
+            var wanted = SelectId.Trim();
+            var person = PersonnelList.FirstOrDefault(p =>
+                string.Equals((p.PerIdentification ?? string.Empty).Trim(), wanted, StringComparison.OrdinalIgnoreCase));
+            BiosOnly = false;
+            KiaOnly = false;
+            if (person == null)
+            {
+                Filter = wanted;
+                FindEpoch++;
+                ApplyView();
+                Logger.LogWarning("Deep-link personnel {Id} was not in the list", wanted);
+                return;
+            }
+
+            Filter = person.PerIdentification;
+            SelectedPerson = person;
+            appliedSelect = SelectId;
+            FindEpoch++;
+            ApplyView();
+            pendingScroll = true;
+            Logger.LogInformation("Selected personnel from query {Id}", person.PerIdentification);
+        }
+
         protected Task OpenBioById(string id)
         {
             var person = PersonnelList.FirstOrDefault(p => p.PerIdentification == id);
@@ -209,16 +303,32 @@ namespace mhd.Pages
             try
             {
                 bioData = await MHDService.LoadBioAsync(selectedPersonnel.PerIdentification);
+                if (disposed)
+                {
+                    return;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return;
             }
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Bio load failed for {Id}", selectedPersonnel.PerIdentification);
+                if (disposed)
+                {
+                    return;
+                }
+
                 bioData = null;
             }
             finally
             {
-                BioLoading = false;
-                await SafeStateHasChangedAsync();
+                if (!disposed)
+                {
+                    BioLoading = false;
+                    await SafeStateHasChangedAsync();
+                }
             }
         }
 
@@ -253,7 +363,7 @@ namespace mhd.Pages
             !string.IsNullOrWhiteSpace(person.ObituaryComments);
 
         protected static string Display(string? value) =>
-            string.IsNullOrWhiteSpace(value) ? string.Empty : value;
+            Bio.IsMeaningfulValue(value) ? value!.Trim() : string.Empty;
 
         private void ApplyView()
         {
@@ -262,6 +372,11 @@ namespace mhd.Pages
             if (BiosOnly)
             {
                 query = query.Where(p => p.HasBio || HasObituary(p));
+            }
+
+            if (KiaOnly)
+            {
+                query = query.Where(p => p.HasKia);
             }
 
             if (!string.IsNullOrWhiteSpace(Filter))
@@ -283,6 +398,8 @@ namespace mhd.Pages
                 ("FirstName", false) => query.OrderByDescending(p => p.FirstName),
                 ("HasBio", true) => query.OrderByDescending(p => p.HasBio).ThenBy(p => p.LastName),
                 ("HasBio", false) => query.OrderBy(p => p.HasBio).ThenBy(p => p.LastName),
+                ("HasKia", true) => query.OrderByDescending(p => p.HasKia).ThenBy(p => p.LastName),
+                ("HasKia", false) => query.OrderBy(p => p.HasKia).ThenBy(p => p.LastName),
                 ("PerGroup", true) => query.OrderBy(p => p.PerGroup),
                 ("PerGroup", false) => query.OrderByDescending(p => p.PerGroup),
                 ("PerSquadron", true) => query.OrderBy(p => p.PerSquadron),
@@ -303,7 +420,22 @@ namespace mhd.Pages
 
         public void Dispose()
         {
+            if (disposed)
+            {
+                return;
+            }
+
             disposed = true;
+            Nav.LocationChanged -= OnLocationChanged;
+            try
+            {
+                lifetimeCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
+            lifetimeCts.Dispose();
             debounceCts?.Cancel();
             debounceCts?.Dispose();
             debounceCts = null;

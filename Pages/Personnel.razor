@@ -120,10 +120,14 @@
 <div class="list-toolbar">
     <img src="assets/icons/search_file-0.png" class="icon-16" alt="" />
     <label for="personnel-find">Find</label>
-    <input id="personnel-find" class="form-95 find-box" value="@Filter" @oninput="OnFilterInput" placeholder="Name, ID, group, squadron" />
+    <input id="personnel-find" @key="@FindEpoch" class="form-95 find-box" value="@Filter" @oninput="OnFilterInput" placeholder="Name, ID, group, squadron" />
     <label class="toolbar-check">
         <input type="checkbox" checked="@BiosOnly" @onchange="OnBiosOnlyChanged" />
         Bios only
+    </label>
+    <label class="toolbar-check">
+        <input type="checkbox" checked="@KiaOnly" @onchange="OnKiaOnlyChanged" />
+        KIA only
     </label>
     <button type="button" class="btn" disabled="@(SelectedPerson == null || (!SelectedPerson.HasBio && !HasObituary(SelectedPerson)))" @onclick="OpenSelectedAsync">Open</button>
     <button type="button" class="btn" @onclick="@(() => ReloadAsync(true))">Refresh</button>
@@ -141,6 +145,7 @@ else
             <button type="button" class="lv-col" @onclick="@(() => SortBy("FirstName"))">First Name @SortMark("FirstName")</button>
             <button type="button" class="lv-col" @onclick="@(() => SortBy("LastName"))">Last Name @SortMark("LastName")</button>
             <button type="button" class="lv-col" @onclick="@(() => SortBy("HasBio"))">Bio @SortMark("HasBio")</button>
+            <button type="button" class="lv-col" @onclick="@(() => SortBy("HasKia"))">KIA @SortMark("HasKia")</button>
             <button type="button" class="lv-col" @onclick="@(() => SortBy("PerGroup"))">Flight Group @SortMark("PerGroup")</button>
             <button type="button" class="lv-col" @onclick="@(() => SortBy("PerSquadron"))">Squadron @SortMark("PerSquadron")</button>
             <button type="button" class="lv-col" @onclick="@(() => SortBy("DeceasedDate"))">Deceased @SortMark("DeceasedDate")</button>
@@ -157,9 +162,9 @@ else
             }
             else if (ShowFullList)
             {
-                <Virtualize @key="@($"{SortColumn}:{SortAscending}:{View.Count}")" Items="View" Context="person" ItemSize="22" OverscanCount="40">
+                <Virtualize @key="@($"{SortColumn}:{SortAscending}:{BiosOnly}:{KiaOnly}:{Filter}:{View.Count}")" Items="View" Context="person" ItemSize="22" OverscanCount="40">
                     <PersonnelRow Person="person"
-                                  Selected="SelectedPerson == person"
+                                  Selected="@(SelectedPerson != null && SelectedPerson.PerIdentification == person.PerIdentification)"
                                   HasObituary="HasObituary(person)"
                                   OnSelect="SelectRow"
                                   OnViewBio="ShowModal" />
@@ -170,7 +175,7 @@ else
                 @foreach (var person in VisibleRows)
                 {
                     <PersonnelRow @key="person.PerIdentification" Person="person"
-                                  Selected="SelectedPerson == person"
+                                  Selected="@(SelectedPerson != null && SelectedPerson.PerIdentification == person.PerIdentification)"
                                   HasObituary="HasObituary(person)"
                                   OnSelect="SelectRow"
                                   OnViewBio="ShowModal" />
@@ -197,3 +202,9 @@ else
     </div>
 }
 </div>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "select")]
+    public string? QuerySelect { get => SelectId; set => SelectId = value; }
+}

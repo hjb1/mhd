@@ -14,10 +14,10 @@
     <link href="css/win95.css" rel="stylesheet" asp-append-version="true" />
     <link href="mhd.styles.css" rel="stylesheet" />
     <link rel="icon" type="image/png" href="favicon.png"/>
-    <component type="typeof(HeadOutlet)" render-mode="ServerPrerendered" />
+    <component type="typeof(HeadOutlet)" render-mode="Server" />
 </head>
 <body>
-    <component type="typeof(App)" render-mode="ServerPrerendered" />
+    <component type="typeof(App)" render-mode="Server" />
 
     <div id="blazor-error-ui">
         <environment include="Staging,Production">
@@ -30,7 +30,27 @@
         <a class="dismiss">🗙</a>
     </div>
     <script>
-        window.mhd = { ping: function () { return 1; } };
+        window.mhd = {
+            ping: function () { return 1; },
+            scrollPerson: function (id) {
+                if (!id) { return 0; }
+                var el = document.querySelector('.listview-body [data-person-id="' + id + '"]')
+                    || document.querySelector('.listview-body .lv-row.highlighted');
+                if (el) {
+                    el.scrollIntoView({ block: 'center' });
+                }
+                return 1;
+            },
+            scrollCrew: function (id) {
+                if (!id) { return 0; }
+                var el = document.querySelector('.mission-table [data-crew-id="' + id + '"]')
+                    || document.querySelector('.mission-table tr.highlighted');
+                if (el) {
+                    el.scrollIntoView({ block: 'nearest' });
+                }
+                return 1;
+            }
+        };
     </script>
     <script src="_framework/blazor.server.js"></script>
 </body>

@@ -12,7 +12,7 @@ namespace mhd.Domain
         Task FillPersonnelAsync(List<PersonnelSummary> destination, IProgress<int>? progress = null, CancellationToken cancellationToken = default);
         Task<List<Aircraft>> QueryAircraftAsync();
         Task FillAircraftAsync(List<Aircraft> destination, IProgress<int>? progress = null, CancellationToken cancellationToken = default);
-        Task<Aircraft> LoadAircraftMissionCrewSummaryAsync(string aircraftNo);
+        Task<Aircraft> LoadAircraftMissionCrewSummaryAsync(string aircraftNo, string? acBG = null);
         void InvalidateListCache();
     }
 }

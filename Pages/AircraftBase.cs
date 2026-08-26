@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.JSInterop;
 using mhd.Domain;
 
@@ -13,7 +14,14 @@ namespace mhd.Pages
         [Inject]
         protected ILogger<AircraftBase> Logger { get; set; } = default!;
         [Inject]
+        protected NavigationManager Nav { get; set; } = default!;
+        [Inject]
         protected IJSRuntime JSRuntime { get; set; } = default!;
+
+        protected string? OpenAircraftNo { get; set; }
+        protected string? OpenMissionNo { get; set; }
+        protected string? HighlightCrewId { get; set; }
+        protected int FindEpoch { get; set; }
 
         protected List<mhd.Domain.Aircraft> aircraftList { get; set; } = new();
         protected List<mhd.Domain.Aircraft> View { get; set; } = new();
@@ -35,50 +43,53 @@ namespace mhd.Pages
         protected bool MissionsLoading { get; set; }
 
         private CancellationTokenSource? debounceCts;
+        private readonly CancellationTokenSource lifetimeCts = new();
         private bool disposed;
+        private string? appliedOpen;
 
         protected IEnumerable<mhd.Domain.Aircraft> VisibleRows => View.Take(VisibleCap);
 
         protected override async Task OnInitializedAsync()
         {
+            Nav.LocationChanged += OnLocationChanged;
             await ReloadAsync(invalidate: false);
+        }
+
+        protected override async Task OnParametersSetAsync()
+        {
+            await ApplyIncomingOpenAsync();
+        }
+
+        private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await ApplyIncomingOpenAsync();
+                StateHasChanged();
+            });
         }
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
-            if (disposed || ShowMissionsDialog || ShowFullList || IsScanning || View.Count <= VisibleCap)
+            if (!firstRender || disposed || ShowMissionsDialog)
             {
                 return;
             }
 
-            try
+            if (!string.IsNullOrWhiteSpace(QueryString.Get(Nav, "ac") ?? OpenAircraftNo))
             {
-                await JSRuntime.InvokeAsync<int>("mhd.ping");
-                if (disposed)
-                {
-                    return;
-                }
-
-                ShowFullList = true;
-                await InvokeAsync(StateHasChanged);
-            }
-            catch (ObjectDisposedException)
-            {
-            }
-            catch (JSDisconnectedException)
-            {
-            }
-            catch (InvalidOperationException)
-            {
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Aircraft after-render skipped");
+                await ApplyIncomingOpenAsync();
+                await SafeStateHasChangedAsync();
             }
         }
 
         protected async Task ReloadAsync(bool invalidate)
         {
+            if (disposed)
+            {
+                return;
+            }
+
             IsScanning = true;
             LoadError = null;
             try
@@ -90,15 +101,24 @@ namespace mhd.Pages
 
                 ShowFullList = false;
                 aircraftList = await MHDService.QueryAircraftAsync();
-                if (disposed)
+                if (disposed || lifetimeCts.IsCancellationRequested)
                 {
                     return;
                 }
 
                 ApplyView();
+                ShowFullList = true;
+            }
+            catch (OperationCanceledException)
+            {
             }
             catch (Exception ex)
             {
+                if (disposed)
+                {
+                    return;
+                }
+
                 Logger.LogError(ex, "Aircraft load failed");
                 LoadError = $"Could not open Aircraft. {ex.GetType().Name}: {ex.Message}";
                 aircraftList = new List<mhd.Domain.Aircraft>();
@@ -106,7 +126,11 @@ namespace mhd.Pages
             }
             finally
             {
-                IsScanning = false;
+                if (!disposed)
+                {
+                    IsScanning = false;
+                    await ApplyIncomingOpenAsync();
+                }
             }
         }
 
@@ -140,10 +164,16 @@ namespace mhd.Pages
                     StateHasChanged();
                 });
             }
-            catch (TaskCanceledException)
+            catch (OperationCanceledException)
             {
             }
             catch (ObjectDisposedException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+            catch (InvalidOperationException)
             {
             }
         }
@@ -187,24 +217,148 @@ namespace mhd.Pages
             SelectedAirCraft = aircraft;
         }
 
+        protected bool IsHighlightedCrew(MissionCrew crew) =>
+            !string.IsNullOrWhiteSpace(HighlightCrewId) &&
+            string.Equals(crew.perIdentification, HighlightCrewId, StringComparison.OrdinalIgnoreCase);
+
+        private async Task ApplyIncomingOpenAsync()
+        {
+            OpenAircraftNo = QueryString.Get(Nav, "ac") ?? OpenAircraftNo;
+            OpenMissionNo = QueryString.Get(Nav, "mission") ?? OpenMissionNo;
+            HighlightCrewId = QueryString.Get(Nav, "crew") ?? HighlightCrewId;
+            if (disposed || aircraftList.Count == 0 || string.IsNullOrWhiteSpace(OpenAircraftNo))
+            {
+                return;
+            }
+
+            var token = $"{OpenAircraftNo}|{OpenMissionNo}|{HighlightCrewId}";
+            if (appliedOpen == token)
+            {
+                return;
+            }
+
+            var wanted = OpenAircraftNo.Trim();
+            var aircraft = aircraftList.FirstOrDefault(a => SameId(a.acAircraftNo, wanted))
+                ?? aircraftList.FirstOrDefault(a => SameAircraftNo(a.acAircraftNo, wanted));
+            Only44th = false;
+            if (aircraft == null)
+            {
+                Filter = wanted;
+                FindEpoch++;
+                ApplyView();
+                Logger.LogWarning("Deep-link aircraft {Aircraft} was not in the list", wanted);
+                return;
+            }
+
+            Filter = aircraft.acAircraftNo;
+            SelectedAirCraft = aircraft;
+            appliedOpen = token;
+            FindEpoch++;
+            ApplyView();
+            Logger.LogInformation(
+                "Opening missions from query ac={Aircraft} mission={Mission} crew={Crew}",
+                aircraft.acAircraftNo, OpenMissionNo, HighlightCrewId);
+            await OpenMissionsSafeAsync(aircraft);
+        }
+
+        private static bool SameId(string? a, string? b) =>
+            string.Equals((a ?? string.Empty).Trim(), (b ?? string.Empty).Trim(), StringComparison.OrdinalIgnoreCase);
+
+        private static bool SameAircraftNo(string? a, string? b) =>
+            string.Equals(NormalizeAircraftNo(a), NormalizeAircraftNo(b), StringComparison.OrdinalIgnoreCase);
+
+        private static string NormalizeAircraftNo(string? value) =>
+            (value ?? string.Empty).Trim().Replace("-", "", StringComparison.Ordinal);
+
         protected Task OpenMissionsByNo(string aircraftNo)
         {
             var aircraft = aircraftList.FirstOrDefault(a => a.acAircraftNo == aircraftNo);
-            return aircraft == null ? Task.CompletedTask : ShowModal(aircraft);
+            return aircraft == null ? Task.CompletedTask : OpenMissionsSafeAsync(aircraft);
         }
 
-        protected async Task OpenSelectedAsync()
+        protected Task OpenSelectedAsync()
         {
-            if (SelectedAirCraft?.acBG == "44th")
+            if (SelectedAirCraft != null && SelectedAirCraft.HasMissions)
             {
-                await ShowModal(SelectedAirCraft);
+                return OpenMissionsSafeAsync(SelectedAirCraft);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        protected static string PersonnelHref(string perIdentification) =>
+            $"personnel?select={Uri.EscapeDataString(perIdentification)}";
+
+        protected static string MissionDateLabel(Mission mission)
+        {
+            if (string.IsNullOrWhiteSpace(mission.MissionDate))
+            {
+                return string.Empty;
+            }
+
+            return DateTime.TryParse(mission.MissionDate, out var date)
+                ? date.ToString("yyyy-MM-dd")
+                : mission.MissionDate;
+        }
+
+        protected static string MissionTargetLabel(Mission mission)
+        {
+            var place = string.Join(", ", new[] { mission.TargetCity, mission.TargetCountry }.Where(s => !string.IsNullOrWhiteSpace(s)));
+            var target = TrimTargetJunk(mission.Target);
+            if (string.IsNullOrWhiteSpace(target))
+            {
+                return place;
+            }
+
+            return string.IsNullOrWhiteSpace(place) ? target : $"{place} — {target}";
+        }
+
+        private static string TrimTargetJunk(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            return value.Trim().TrimEnd('(', ')', '#', '%', '*', '+', '-', '=', '$', '!', ' ');
+        }
+
+        protected async Task OpenMissionsSafeAsync(mhd.Domain.Aircraft? aircraft)
+        {
+            try
+            {
+                await ShowModal(aircraft);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "View Missions failed for {Aircraft}", aircraft?.acAircraftNo);
+                if (!disposed)
+                {
+                    MissionsLoading = false;
+                    ShowMissionsDialog = true;
+                    await SafeStateHasChangedAsync();
+                }
             }
         }
 
-        protected async Task ShowModal(mhd.Domain.Aircraft selectedAirCraftRow)
+        protected async Task ShowModal(mhd.Domain.Aircraft? selectedAirCraftRow)
         {
+            if (selectedAirCraftRow == null || disposed)
+            {
+                return;
+            }
+
             SelectedAirCraft = selectedAirCraftRow;
-            ExpandedMissionNo = null;
+            ExpandedMissionNo = string.IsNullOrWhiteSpace(OpenMissionNo) ? null : OpenMissionNo.Trim();
             missionCrewSummaries = new mhd.Domain.Aircraft
             {
                 acAircraftNo = selectedAirCraftRow.acAircraftNo,
@@ -216,11 +370,43 @@ namespace mhd.Pages
 
             try
             {
-                missionCrewSummaries = await MHDService.LoadAircraftMissionCrewSummaryAsync(selectedAirCraftRow.acAircraftNo);
+                var missions = await MHDService.LoadAircraftMissionCrewSummaryAsync(
+                    selectedAirCraftRow.acAircraftNo,
+                    selectedAirCraftRow.acBG);
+                if (disposed)
+                {
+                    return;
+                }
+
+                missionCrewSummaries = missions ?? new mhd.Domain.Aircraft
+                {
+                    acAircraftNo = selectedAirCraftRow.acAircraftNo,
+                    Mission = new List<Mission>()
+                };
+                missionCrewSummaries.Mission ??= new List<Mission>();
+                foreach (var mission in missionCrewSummaries.Mission)
+                {
+                    mission.MissionCrew ??= new List<MissionCrew>();
+                }
+
+                if (!string.IsNullOrWhiteSpace(OpenMissionNo))
+                {
+                    var match = missionCrewSummaries.Mission.FirstOrDefault(m => SameId(m.misMissionNo, OpenMissionNo));
+                    ExpandedMissionNo = match?.misMissionNo ?? OpenMissionNo.Trim();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return;
             }
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Mission load failed for {Aircraft}", selectedAirCraftRow.acAircraftNo);
+                if (disposed)
+                {
+                    return;
+                }
+
                 missionCrewSummaries = new mhd.Domain.Aircraft
                 {
                     acAircraftNo = selectedAirCraftRow.acAircraftNo,
@@ -229,21 +415,61 @@ namespace mhd.Pages
             }
             finally
             {
-                MissionsLoading = false;
-                await SafeStateHasChangedAsync();
+                if (!disposed)
+                {
+                    MissionsLoading = false;
+                    await SafeStateHasChangedAsync();
+                }
+            }
+
+            if (disposed)
+            {
+                return;
             }
 
             try
             {
                 var personnel = await MHDService.QueryPersonnelAsync();
+                if (disposed)
+                {
+                    return;
+                }
+
                 PersonnelNames = personnel
                     .Where(p => !string.IsNullOrEmpty(p.PerIdentification))
                     .GroupBy(p => p.PerIdentification)
                     .ToDictionary(g => g.Key, g => FormatName(g.First()));
             }
+            catch (OperationCanceledException)
+            {
+            }
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Personnel name lookup failed for missions");
+            }
+
+            await ScrollHighlightedCrewAsync();
+        }
+
+        private async Task ScrollHighlightedCrewAsync()
+        {
+            if (disposed || string.IsNullOrWhiteSpace(HighlightCrewId))
+            {
+                return;
+            }
+
+            try
+            {
+                await JSRuntime.InvokeAsync<int>("mhd.scrollCrew", HighlightCrewId);
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+            catch (InvalidOperationException)
+            {
             }
         }
 
@@ -347,7 +573,22 @@ namespace mhd.Pages
 
         public void Dispose()
         {
+            if (disposed)
+            {
+                return;
+            }
+
             disposed = true;
+            Nav.LocationChanged -= OnLocationChanged;
+            try
+            {
+                lifetimeCts.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+            }
+
+            lifetimeCts.Dispose();
             debounceCts?.Cancel();
             debounceCts?.Dispose();
             debounceCts = null;

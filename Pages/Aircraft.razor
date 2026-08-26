@@ -17,7 +17,7 @@
             {
                 <p><em>Reading mission records...</em></p>
             }
-            else if (missionCrewSummaries.Mission.Count == 0)
+            else if (missionCrewSummaries?.Mission == null || missionCrewSummaries.Mission.Count == 0)
             {
                 <p><em>No missions found</em></p>
             }
@@ -28,6 +28,8 @@
                         <tr>
                             <th></th>
                             <th>Mission No</th>
+                            <th>Date</th>
+                            <th>Target</th>
                             <th># of Crew</th>
                             <th>Aircraft Position</th>
                             <th>Squadron Position</th>
@@ -41,7 +43,9 @@
                             <tr class="@(expanded ? "highlighted" : null)" @onclick="@(() => ToggleMission(mission.misMissionNo))">
                                 <td>@(expanded ? "▼" : "►")</td>
                                 <td>@mission.misMissionNo</td>
-                                <td>@mission.MissionCrew.Count</td>
+                                <td>@MissionDateLabel(mission)</td>
+                                <td class="wrap-cell">@MissionTargetLabel(mission)</td>
+                                <td>@(mission.MissionCrew?.Count ?? 0)</td>
                                 <td>@mission.acmAircraftPosition</td>
                                 <td>@mission.acmSquadronPos</td>
                                 <td class="wrap-cell">@mission.acmPlaneRemarks</td>
@@ -49,8 +53,8 @@
                             @if (expanded)
                             {
                                 <tr class="crew-row">
-                                    <td colspan="6">
-                                        @if (mission.MissionCrew.Count == 0)
+                                    <td colspan="8">
+                                        @if (mission.MissionCrew == null || mission.MissionCrew.Count == 0)
                                         {
                                             <em>No crew listed for this mission.</em>
                                         }
@@ -69,11 +73,20 @@
                                                 <tbody>
                                                     @foreach (var crew in mission.MissionCrew)
                                                     {
-                                                        <tr>
+                                                        <tr class="@(IsHighlightedCrew(crew) ? "highlighted" : null)" data-crew-id="@crew.perIdentification">
                                                             <td>@crew.Rank</td>
-                                                            <td>@CrewName(crew)</td>
+                                                            <td>
+                                                                @if (!string.IsNullOrWhiteSpace(crew.perIdentification))
+                                                                {
+                                                                    <NavLink class="crew-name" href="@PersonnelHref(crew.perIdentification)" @onclick:stopPropagation="true">@CrewName(crew)</NavLink>
+                                                                }
+                                                                else
+                                                                {
+                                                                    @CrewName(crew)
+                                                                }
+                                                            </td>
                                                             <td>@crew.Duties</td>
-                                                            <td>@crew.Status</td>
+                                                            <td>@CrewStatus.Display(crew.Status)</td>
                                                             <td class="wrap-cell">@crew.NameRemarks</td>
                                                         </tr>
                                                     }
@@ -99,12 +112,12 @@
 <div class="list-toolbar">
     <img src="assets/icons/search_file-0.png" class="icon-16" alt="" />
     <label for="aircraft-find">Find</label>
-    <input id="aircraft-find" class="form-95 find-box" value="@Filter" @oninput="OnFilterInput" placeholder="Number, name, group, squadron" />
+    <input id="aircraft-find" @key="@FindEpoch" class="form-95 find-box" value="@Filter" @oninput="OnFilterInput" placeholder="Number, name, group, squadron" />
     <label class="toolbar-check">
         <input type="checkbox" checked="@Only44th" @onchange="OnOnly44thChanged" />
         44th Bomb Group
     </label>
-    <button type="button" class="btn" disabled="@(SelectedAirCraft.acBG != "44th")" @onclick="OpenSelectedAsync">Missions</button>
+    <button type="button" class="btn" disabled="@(!SelectedAirCraft.HasMissions)" @onclick="OpenSelectedAsync">Missions</button>
     <button type="button" class="btn" @onclick="@(() => ReloadAsync(true))">Refresh</button>
 </div>
 
@@ -135,11 +148,12 @@ else
             }
             else if (ShowFullList)
             {
-                <Virtualize @key="@($"{SortColumn}:{SortAscending}:{View.Count}")" Items="View" Context="aircraft" ItemSize="22" OverscanCount="40">
+                <Virtualize @key="@($"{SortColumn}:{SortAscending}:{Only44th}:{Filter}:{View.Count}")" Items="View" Context="aircraft" ItemSize="22" OverscanCount="40">
                     <AircraftRow Aircraft="aircraft"
-                                 Selected="SelectedAirCraft == aircraft"
+                                 Selected="@(SelectedAirCraft.acAircraftNo == aircraft.acAircraftNo)"
+                                 HasMissions="aircraft.HasMissions"
                                  OnSelect="SelectRow"
-                                 OnViewMissions="ShowModal" />
+                                 OnViewMissions="OpenMissionsSafeAsync" />
                 </Virtualize>
             }
             else
@@ -147,9 +161,10 @@ else
                 @foreach (var aircraft in VisibleRows)
                 {
                     <AircraftRow @key="aircraft.acAircraftNo" Aircraft="aircraft"
-                                 Selected="SelectedAirCraft == aircraft"
+                                 Selected="@(SelectedAirCraft.acAircraftNo == aircraft.acAircraftNo)"
+                                 HasMissions="aircraft.HasMissions"
                                  OnSelect="SelectRow"
-                                 OnViewMissions="ShowModal" />
+                                 OnViewMissions="OpenMissionsSafeAsync" />
                 }
             }
         </div>
@@ -173,3 +188,17 @@ else
     </div>
 }
 </div>
+
+@code {
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "ac")]
+    public string? QueryAc { get => OpenAircraftNo; set => OpenAircraftNo = value; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "mission")]
+    public string? QueryMission { get => OpenMissionNo; set => OpenMissionNo = value; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "crew")]
+    public string? QueryCrew { get => HighlightCrewId; set => HighlightCrewId = value; }
+}

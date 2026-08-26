@@ -18,6 +18,15 @@ public class Mission
     public string acmWingPos { get; set; }
     public string acmFormationSize { get; set; }
     public string acmAircraftStatus { get; set; }
+    public string acmBG { get; set; }
+    [NotMapped]
+    public string TargetCity { get; set; }
+    [NotMapped]
+    public string TargetCountry { get; set; }
+    [NotMapped]
+    public string Target { get; set; }
+    [NotMapped]
+    public string MissionDate { get; set; }
     [ForeignKey(nameof(misMissionNo))]
     public List<MissionCrew> MissionCrew {get; set;} = new List<MissionCrew>();
 }

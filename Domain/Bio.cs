@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace mhd.Domain;
 public class Bio
@@ -129,6 +130,62 @@ public class Bio
     public string bioOtherGroups { get; set; } = string.Empty;
     public string BioDate { get; set; } = string.Empty;
     public Personnel Personnel {get; set; }
+
+    private static readonly HashSet<string> IdentityProperties = new(StringComparer.OrdinalIgnoreCase)
+    {
+        nameof(id),
+        nameof(perIdentification),
+        nameof(LastName),
+        nameof(FirstName),
+        nameof(Initial),
+        nameof(Personnel)
+    };
+
+    private static readonly PropertyInfo[] ContentProperties = typeof(Bio)
+        .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+        .Where(p => p.CanRead && p.PropertyType == typeof(string) && !IdentityProperties.Contains(p.Name))
+        .ToArray();
+
+    public static bool HasMeaningfulContent(Bio? bio)
+    {
+        if (bio == null)
+        {
+            return false;
+        }
+
+        foreach (var property in ContentProperties)
+        {
+            if (IsMeaningfulValue(property.GetValue(bio) as string))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static bool IsMeaningfulValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var text = value.Trim();
+        if (text is "0" or "-0" or "12/30/1899")
+        {
+            return false;
+        }
+
+        if (text.StartsWith("1970-01-01", StringComparison.Ordinal) ||
+            text.StartsWith("1899-12-30", StringComparison.Ordinal) ||
+            text.StartsWith("0001-01-01", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return true;
+    }
 }
 
 public class BioSummary

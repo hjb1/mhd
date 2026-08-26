@@ -434,7 +434,7 @@ img.icon-32,
 }
 
 .personnel-grid {
-    grid-template-columns: 90px 1.1fr 1.1fr 90px 100px 90px 100px 80px;
+    grid-template-columns: 90px 1.1fr 1.1fr 80px 50px 100px 90px 100px 80px;
 }
 
 .aircraft-grid {
@@ -505,6 +505,21 @@ img.icon-32,
 
 .lv-row.highlighted {
     background: navy;
+    color: #fff;
+}
+
+a.crew-name {
+    color: #00f;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+a.crew-name:visited {
+    color: #00f;
+}
+
+.mission-table tr.highlighted a.crew-name,
+.mission-table tr.highlighted a.crew-name:visited {
     color: #fff;
 }
 

@@ -54,6 +54,10 @@ public sealed class DatabaseContext : DbContext
         MissionCrewModel.ToContainer(nameof(MissionCrew)).HasNoDiscriminator();
         MissionCrewModel.HasPartitionKey(d => d.misMissionNo);
 
+        var MissionTargetModel = modelBuilder.Entity<MissionTarget>();
+        MissionTargetModel.ToContainer(nameof(MissionTarget)).HasNoDiscriminator();
+        MissionTargetModel.HasPartitionKey(d => d.acBG);
+        MissionTargetModel.HasKey(d => d.id);
 
         base.OnModelCreating(modelBuilder);
     }
@@ -61,5 +65,6 @@ public sealed class DatabaseContext : DbContext
     public DbSet<Aircraft> Aircraft {get; set; }
     public DbSet<Mission> Mission {get; set; }
     public DbSet<MissionCrew> MissionCrew {get; set; }
+    public DbSet<MissionTarget> MissionTarget { get; set; }
     
 }

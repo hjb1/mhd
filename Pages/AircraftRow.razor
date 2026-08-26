@@ -6,7 +6,7 @@
     <span @onclick="Select">@Aircraft.acSquadron</span>
     <span class="clip-cell" title="@Aircraft.acFinalAircraftDisposition" @onclick="Select">@Aircraft.acFinalAircraftDisposition</span>
     <span>
-        @if (Aircraft.acBG == "44th")
+        @if (HasMissions)
         {
             <button type="button" class="btn btn-sm" @onclick="ViewMissions">View Missions</button>
         }
@@ -16,6 +16,7 @@
 @code {
     [Parameter] public mhd.Domain.Aircraft Aircraft { get; set; } = default!;
     [Parameter] public bool Selected { get; set; }
+    [Parameter] public bool HasMissions { get; set; }
     [Parameter] public EventCallback<mhd.Domain.Aircraft> OnSelect { get; set; }
     [Parameter] public EventCallback<mhd.Domain.Aircraft> OnViewMissions { get; set; }
 

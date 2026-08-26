@@ -45,7 +45,18 @@
                 <NavMenu />
             </aside>
             <article class="client-area">
-                @Body
+                <ErrorBoundary @ref="errorBoundary">
+                    <ChildContent>
+                        @Body
+                    </ChildContent>
+                    <ErrorContent Context="ex">
+                        <div class="load-error">
+                            <p>This window stopped responding.</p>
+                            <p class="small">@ex.GetType().Name: @ex.Message</p>
+                            <button type="button" class="btn" @onclick="RecoverWindow">Close</button>
+                        </div>
+                    </ErrorContent>
+                </ErrorBoundary>
             </article>
         </div>
     </div>
@@ -95,6 +106,7 @@
 
 @code {
     private bool startOpen;
+    private ErrorBoundary? errorBoundary;
 
     protected override void OnInitialized()
     {
@@ -104,6 +116,19 @@
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
         startOpen = false;
+        try
+        {
+            errorBoundary?.Recover();
+        }
+        catch
+        {
+        }
+    }
+
+    private void RecoverWindow()
+    {
+        errorBoundary?.Recover();
+        Nav.NavigateTo("", forceLoad: false);
     }
 
     private void ToggleStartMenu()

@@ -19,6 +19,8 @@ public class Aircraft
     public string acSquadron { get; set; }
     public string acFinalAircraftDisposition { get; set; }
     public string acBG { get; set; }
+    [NotMapped]
+    public bool HasMissions { get; set; }
     [ForeignKey(nameof(acAircraftNo))]
     public List<Mission> Mission { get; set; }
 }

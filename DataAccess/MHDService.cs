@@ -42,7 +42,7 @@ public class MHDService : IMHDService
                 .SingleOrDefaultAsync(d => d.perIdentification == perIdentification);
         });
 
-        return bio!;
+        return Bio.HasMeaningfulContent(bio) ? bio! : null!;
     }
 
     public async Task<List<BioSummary>> QueryDocumentAsync()
@@ -50,7 +50,11 @@ public class MHDService : IMHDService
         EnsureCosmosConfigured();
         using var context = factory.CreateDbContext();
         var documents = await context.Bio.ToListAsync();
-        return documents.Select(d => new BioSummary(d)).OrderBy(ds => ds.PerIdentification).ToList();
+        return documents
+            .Where(Bio.HasMeaningfulContent)
+            .Select(d => new BioSummary(d))
+            .OrderBy(ds => ds.PerIdentification)
+            .ToList();
     }
 
     public async Task<List<PersonnelSummary>> QueryPersonnelAsync()
@@ -72,15 +76,42 @@ public class MHDService : IMHDService
 
         using var bioContext = factory.CreateDbContext();
         using var personnelContext = factory.CreateDbContext();
+        using var crewContext = factory.CreateDbContext();
+        using var missionContext = factory.CreateDbContext();
 
-        var bioIdsTask = bioContext.Bio
-            .Where(b => b.perIdentification != null)
-            .Select(b => b.perIdentification)
-            .ToListAsync(cancellationToken);
+        var biosTask = bioContext.Bio.ToListAsync(cancellationToken);
         var personnelTask = personnelContext.Personnel.ToListAsync(cancellationToken);
-        await Task.WhenAll(bioIdsTask, personnelTask);
+        var crewTask = crewContext.MissionCrew.ToListAsync(cancellationToken);
+        var missionTask = missionContext.Mission.ToListAsync(cancellationToken);
+        await Task.WhenAll(biosTask, personnelTask, crewTask, missionTask);
 
-        var bioIds = bioIdsTask.Result.ToHashSet();
+        var bioIds = biosTask.Result
+            .Where(Bio.HasMeaningfulContent)
+            .Select(b => b.perIdentification)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .ToHashSet();
+        var sortieKeys = missionTask.Result
+            .Where(m => !string.IsNullOrWhiteSpace(m.acAircraftNo) && !string.IsNullOrWhiteSpace(m.misMissionNo))
+            .Select(m => $"{m.acAircraftNo}\t{m.misMissionNo}")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var kiaLink = new Dictionary<string, (string Aircraft, string Mission, bool Confirmed)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var crew in crewTask.Result)
+        {
+            if (!CrewStatus.IsKia(crew.Status) ||
+                string.IsNullOrWhiteSpace(crew.perIdentification) ||
+                string.IsNullOrWhiteSpace(crew.acAircraftNo) ||
+                string.IsNullOrWhiteSpace(crew.misMissionNo))
+            {
+                continue;
+            }
+
+            var confirmed = sortieKeys.Contains($"{crew.acAircraftNo}\t{crew.misMissionNo}");
+            if (!kiaLink.TryGetValue(crew.perIdentification, out var existing) || (!existing.Confirmed && confirmed))
+            {
+                kiaLink[crew.perIdentification] = (crew.acAircraftNo, crew.misMissionNo, confirmed);
+            }
+        }
+
         foreach (var d in personnelTask.Result)
         {
             if (d.DeceasedDate == "12/30/1899")
@@ -88,7 +119,14 @@ public class MHDService : IMHDService
                 d.DeceasedDate = "";
             }
 
-            destination.Add(new PersonnelSummary(d, bioIds.Contains(d.perIdentification)));
+            kiaLink.TryGetValue(d.perIdentification, out var link);
+            var hasKia = !string.IsNullOrEmpty(link.Aircraft) || CrewStatus.IsKiaFlag(d.perKIA);
+            destination.Add(new PersonnelSummary(
+                d,
+                bioIds.Contains(d.perIdentification),
+                hasKia,
+                link.Aircraft,
+                link.Mission));
             if (destination.Count == 40 || destination.Count % 500 == 0)
             {
                 progress?.Report(destination.Count);
@@ -122,15 +160,27 @@ public class MHDService : IMHDService
             return;
         }
 
-        using var context = factory.CreateDbContext();
-        var aircraftList = await context.Aircraft.ToListAsync(cancellationToken);
+        using var aircraftContext = factory.CreateDbContext();
+        using var missionContext = factory.CreateDbContext();
+        var aircraftTask = aircraftContext.Aircraft.ToListAsync(cancellationToken);
+        var missionAircraftTask = missionContext.Mission
+            .Select(m => m.acAircraftNo)
+            .ToListAsync(cancellationToken);
+        await Task.WhenAll(aircraftTask, missionAircraftTask);
 
-        foreach (var aircraft in aircraftList)
+        var aircraftWithMissions = missionAircraftTask.Result
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var aircraft in aircraftTask.Result)
         {
             if (aircraft.acFinalAircraftDisposition == "Aircraft Final Disposition")
             {
                 aircraft.acFinalAircraftDisposition = "";
             }
+
+            aircraft.HasMissions = !string.IsNullOrWhiteSpace(aircraft.acAircraftNo)
+                && aircraftWithMissions.Contains(aircraft.acAircraftNo);
 
             destination.Add(aircraft);
             if (destination.Count == 40 || destination.Count % 200 == 0)
@@ -144,10 +194,10 @@ public class MHDService : IMHDService
         progress?.Report(destination.Count);
     }
 
-    public async Task<Aircraft> LoadAircraftMissionCrewSummaryAsync(string aircraftNo)
+    public async Task<Aircraft> LoadAircraftMissionCrewSummaryAsync(string aircraftNo, string? acBG = null)
     {
         EnsureCosmosConfigured();
-        var key = $"mhd:missions:{aircraftNo}";
+        var key = $"mhd:missions:{aircraftNo}:{acBG}";
         if (cache.TryGetValue(key, out Aircraft? cached) && cached != null)
         {
             return cached;
@@ -170,13 +220,49 @@ public class MHDService : IMHDService
             var crewByMission = crew.ToLookup(mc => mc.misMissionNo);
             foreach (var mission in missions)
             {
-                mission.MissionCrew = crewByMission[mission.misMissionNo].ToList();
+                mission.MissionCrew = crewByMission[mission.misMissionNo].ToList() ?? new List<MissionCrew>();
+            }
+
+            var bg = acBG;
+            if (string.IsNullOrWhiteSpace(bg))
+            {
+                bg = missions.Select(m => m.acmBG).FirstOrDefault(g => !string.IsNullOrWhiteSpace(g));
+            }
+
+            if (!string.IsNullOrWhiteSpace(bg) && missions.Count > 0)
+            {
+                try
+                {
+                    var targets = await context.MissionTarget
+                        .WithPartitionKey(bg)
+                        .ToListAsync();
+                    var byNo = targets
+                        .Where(t => !string.IsNullOrWhiteSpace(t.misMissionNo))
+                        .GroupBy(t => t.misMissionNo)
+                        .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                    foreach (var mission in missions)
+                    {
+                        if (mission.misMissionNo != null && byNo.TryGetValue(mission.misMissionNo, out var target))
+                        {
+                            mission.TargetCity = target.City ?? string.Empty;
+                            mission.TargetCountry = target.Country ?? string.Empty;
+                            mission.Target = target.Target ?? string.Empty;
+                            mission.MissionDate = target.MissionDate ?? string.Empty;
+                        }
+                    }
+                }
+                catch (CosmosException)
+                {
+                }
             }
 
             var result = new Aircraft
             {
                 acAircraftNo = aircraftNo,
-                Mission = missions.OrderBy(m => m.misMissionNo).ToList()
+                acBG = bg ?? string.Empty,
+                Mission = missions
+                    .OrderBy(m => int.TryParse(m.misMissionNo, out var n) ? n : int.MaxValue)
+                    .ToList()
             };
             cache.Set(key, result, CacheDuration);
             return result;

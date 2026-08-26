@@ -1,4 +1,4 @@
-<div class="lv-row personnel-grid @(Selected ? "highlighted" : null)">
+<div class="lv-row personnel-grid @(Selected ? "highlighted" : null)" data-person-id="@Person.PerIdentification">
     <span @onclick="Select">@Person.PerIdentification</span>
     <span @onclick="Select">@Person.FirstName</span>
     <span @onclick="Select">@Person.LastName</span>
@@ -10,6 +10,16 @@
         else
         {
             <text>No Bio</text>
+        }
+    </span>
+    <span>
+        @if (Person.HasKiaMission)
+        {
+            <NavLink class="btn btn-sm" href="@KiaHref(Person)" title="@($"Mission {Person.KiaMissionNo} / {Person.KiaAircraftNo}")" @onclick:stopPropagation="true">KIA</NavLink>
+        }
+        else if (Person.HasKia)
+        {
+            <text>KIA</text>
         }
     </span>
     <span @onclick="Select">@Person.PerGroup</span>
@@ -33,4 +43,7 @@
     private Task Select() => OnSelect.InvokeAsync(Person);
 
     private Task ViewBio() => OnViewBio.InvokeAsync(Person);
+
+    private static string KiaHref(PersonnelSummary person) =>
+        $"aircraft?ac={Uri.EscapeDataString(person.KiaAircraftNo)}&mission={Uri.EscapeDataString(person.KiaMissionNo)}&crew={Uri.EscapeDataString(person.PerIdentification)}";
 }

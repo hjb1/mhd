@@ -6,7 +6,7 @@ namespace mhd.Domain
         {
 
         }
-        public PersonnelSummary(Personnel Personnel, bool bio)
+        public PersonnelSummary(Personnel Personnel, bool bio, bool kia = false, string? kiaAircraftNo = null, string? kiaMissionNo = null)
         {
             Id = Personnel.id;
             PerIdentification = Personnel.perIdentification;
@@ -15,6 +15,9 @@ namespace mhd.Domain
             PerGroup = Personnel.perGroup;
             PerSquadron = Personnel.perSquadron;
             HasBio = bio;
+            HasKia = kia || CrewStatus.IsKiaFlag(Personnel.perKIA);
+            KiaAircraftNo = kiaAircraftNo ?? string.Empty;
+            KiaMissionNo = kiaMissionNo ?? string.Empty;
             DeceasedDate = Personnel.DeceasedDate;
             ObituaryComments = Personnel.ObituaryComments;
         }
@@ -26,6 +29,12 @@ namespace mhd.Domain
         public string PerSquadron { get; set; } = string.Empty;
         public string DeceasedDate { get; set; } = string.Empty;
         public string ObituaryComments { get; set; } = string.Empty;
-        public bool HasBio {get; set; } = false; 
+        public bool HasBio {get; set; } = false;
+        public bool HasKia { get; set; } = false;
+        public string KiaAircraftNo { get; set; } = string.Empty;
+        public string KiaMissionNo { get; set; } = string.Empty;
+
+        public bool HasKiaMission =>
+            HasKia && !string.IsNullOrWhiteSpace(KiaAircraftNo) && !string.IsNullOrWhiteSpace(KiaMissionNo);
     }
 }
