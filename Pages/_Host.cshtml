@@ -49,6 +49,29 @@
                     el.scrollIntoView({ block: 'nearest' });
                 }
                 return 1;
+            },
+            localClock: function () {
+                var d = new Date();
+                var tz = '';
+                try {
+                    tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+                } catch (e) {
+                }
+                var time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                var title = d.toLocaleString('en-US', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    timeZoneName: 'short'
+                });
+                if (tz) {
+                    title += ' — ' + tz;
+                }
+                return { time: time, title: title, timeZone: tz };
             }
         };
     </script>

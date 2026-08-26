@@ -1,14 +1,29 @@
+@inject IJSRuntime JS
 @implements IDisposable
 
-<span class="time" title="@now.ToString("F")">@now.ToString("h:mm tt")</span>
+<span class="time" title="@title">@display</span>
 
 @code {
-    private DateTime now = DateTime.Now;
+    private string display = string.Empty;
+    private string title = string.Empty;
     private System.Threading.Timer? timer;
     private bool disposed;
+    private bool started;
 
-    protected override void OnInitialized()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!firstRender || disposed || started)
+        {
+            return;
+        }
+
+        started = true;
+        await TickAsync();
+        if (disposed)
+        {
+            return;
+        }
+
         timer = new System.Threading.Timer(_ =>
         {
             if (disposed)
@@ -16,29 +31,41 @@
                 return;
             }
 
-            try
-            {
-                _ = InvokeAsync(() =>
-                {
-                    if (disposed)
-                    {
-                        return;
-                    }
-
-                    now = DateTime.Now;
-                    StateHasChanged();
-                });
-            }
-            catch (ObjectDisposedException)
-            {
-            }
-            catch (InvalidOperationException)
-            {
-            }
-            catch (JSDisconnectedException)
-            {
-            }
+            _ = InvokeAsync(TickAsync);
         }, null, TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(15));
+    }
+
+    private async Task TickAsync()
+    {
+        if (disposed)
+        {
+            return;
+        }
+
+        try
+        {
+            var clock = await JS.InvokeAsync<LocalClock>("mhd.localClock");
+            if (disposed || clock == null)
+            {
+                return;
+            }
+
+            display = clock.Time ?? string.Empty;
+            title = clock.Title ?? string.Empty;
+            StateHasChanged();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        catch (JSException)
+        {
+        }
     }
 
     public void Dispose()
@@ -46,5 +73,12 @@
         disposed = true;
         timer?.Dispose();
         timer = null;
+    }
+
+    private sealed class LocalClock
+    {
+        public string? Time { get; set; }
+        public string? Title { get; set; }
+        public string? TimeZone { get; set; }
     }
 }
