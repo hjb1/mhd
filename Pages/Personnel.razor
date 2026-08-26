@@ -140,6 +140,7 @@
 else
 {
     <div class="listview">
+        <div class="sunken-panel listview-body">
         <div class="listview-header personnel-grid">
             <button type="button" class="lv-col" @onclick="@(() => SortBy("PerIdentification"))">ID @SortMark("PerIdentification")</button>
             <button type="button" class="lv-col" @onclick="@(() => SortBy("FirstName"))">First Name @SortMark("FirstName")</button>
@@ -151,7 +152,6 @@ else
             <button type="button" class="lv-col" @onclick="@(() => SortBy("DeceasedDate"))">Deceased @SortMark("DeceasedDate")</button>
             <button type="button" class="lv-col" @onclick="@(() => SortBy("Obituary"))">Obituary @SortMark("Obituary")</button>
         </div>
-        <div class="sunken-panel listview-body">
             @if (IsScanning)
             {
                 <div class="empty-list">Reading Personnel.mdb…</div>

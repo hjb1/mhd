@@ -434,7 +434,7 @@ img.icon-32,
 }
 
 .personnel-grid {
-    grid-template-columns: 90px 1.1fr 1.1fr 80px 50px 100px 90px 100px 80px;
+    grid-template-columns: 72px minmax(0, 1.15fr) minmax(0, 1.15fr) 96px 72px minmax(0, 0.85fr) 80px 88px 72px;
 }
 
 .aircraft-grid {
@@ -442,10 +442,14 @@ img.icon-32,
 }
 
 .listview-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
     background: silver;
 }
 
 .listview-header .lv-col {
+    min-width: 0;
     height: 20px;
     box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px grey, inset 2px 2px #dfdfdf;
     background: silver;

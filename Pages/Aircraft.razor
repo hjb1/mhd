@@ -128,6 +128,7 @@
 else
 {
     <div class="listview">
+        <div class="sunken-panel listview-body">
         <div class="listview-header aircraft-grid">
             <button type="button" class="lv-col" @onclick="@(() => SortBy("acAircraftNo"))">Aircraft # @SortMark("acAircraftNo")</button>
             <button type="button" class="lv-col" @onclick="@(() => SortBy("acAircraftLetter"))">Letter @SortMark("acAircraftLetter")</button>
@@ -137,7 +138,6 @@ else
             <button type="button" class="lv-col" @onclick="@(() => SortBy("acFinalAircraftDisposition"))">Disposition @SortMark("acFinalAircraftDisposition")</button>
             <span class="lv-col">Missions</span>
         </div>
-        <div class="sunken-panel listview-body">
             @if (IsScanning)
             {
                 <div class="empty-list">Reading Aircraft.mdb…</div>
