@@ -28,7 +28,7 @@
     <span>
         @if (HasObituary)
         {
-            <button type="button" class="btn btn-sm" @onclick="ViewBio">View</button>
+            <button type="button" class="btn btn-sm" @onclick="ViewObituary">View</button>
         }
     </span>
 </div>
@@ -39,10 +39,13 @@
     [Parameter] public bool HasObituary { get; set; }
     [Parameter] public EventCallback<PersonnelSummary> OnSelect { get; set; }
     [Parameter] public EventCallback<PersonnelSummary> OnViewBio { get; set; }
+    [Parameter] public EventCallback<PersonnelSummary> OnViewObituary { get; set; }
 
     private Task Select() => OnSelect.InvokeAsync(Person);
 
     private Task ViewBio() => OnViewBio.InvokeAsync(Person);
+
+    private Task ViewObituary() => OnViewObituary.InvokeAsync(Person);
 
     private static string KiaHref(PersonnelSummary person) =>
         $"aircraft?ac={Uri.EscapeDataString(person.KiaAircraftNo)}&mission={Uri.EscapeDataString(person.KiaMissionNo)}&crew={Uri.EscapeDataString(person.PerIdentification)}";

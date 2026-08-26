@@ -26,10 +26,6 @@
             {
                 <span>No record selected.</span>
             }
-            else if (BioLoading)
-            {
-                <p><em>Reading bio record…</em></p>
-            }
             else
             {
                 <ul class="nav nav-tabs">
@@ -43,6 +39,12 @@
                         <button type="button" class="nav-link @(BioTab == 2 ? "active" : null)" @onclick="@(() => BioTab = 2)">Notes</button>
                     </li>
                 </ul>
+                @if (BioLoading)
+                {
+                    <p><em>Reading bio record…</em></p>
+                }
+                else
+                {
                 <div class="tab-content bio-sheet">
                     @if (bioData == null && !HasObituary(SelectedPerson))
                     {
@@ -106,6 +108,7 @@
                         <textarea class="form-95" rows="4" readonly>@Display(SelectedPerson.ObituaryComments)</textarea>
                     }
                 </div>
+                }
             }
             </div>
             <div class="win-dialog-footer">
@@ -167,7 +170,8 @@ else
                                   Selected="@(SelectedPerson != null && SelectedPerson.PerIdentification == person.PerIdentification)"
                                   HasObituary="HasObituary(person)"
                                   OnSelect="SelectRow"
-                                  OnViewBio="ShowModal" />
+                                  OnViewBio="ShowModal"
+                                  OnViewObituary="ShowObituary" />
                 </Virtualize>
             }
             else
@@ -178,7 +182,8 @@ else
                                   Selected="@(SelectedPerson != null && SelectedPerson.PerIdentification == person.PerIdentification)"
                                   HasObituary="HasObituary(person)"
                                   OnSelect="SelectRow"
-                                  OnViewBio="ShowModal" />
+                                  OnViewBio="ShowModal"
+                                  OnViewObituary="ShowObituary" />
                 }
             }
         </div>

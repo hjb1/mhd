@@ -283,6 +283,9 @@ namespace mhd.Pages
             return person == null ? Task.CompletedTask : ShowModal(person);
         }
 
+        protected Task ShowObituary(PersonnelSummary selectedPersonnel) =>
+            ShowModal(selectedPersonnel, notesTab: true);
+
         protected async Task OpenSelectedAsync()
         {
             if (SelectedPerson != null && (SelectedPerson.HasBio || HasObituary(SelectedPerson)))
@@ -291,10 +294,13 @@ namespace mhd.Pages
             }
         }
 
-        protected async Task ShowModal(PersonnelSummary selectedPersonnel)
+        protected Task ShowModal(PersonnelSummary selectedPersonnel) =>
+            ShowModal(selectedPersonnel, notesTab: false);
+
+        private async Task ShowModal(PersonnelSummary selectedPersonnel, bool notesTab)
         {
             SelectedPerson = selectedPersonnel;
-            BioTab = 0;
+            BioTab = notesTab ? 2 : 0;
             bioData = null;
             BioLoading = true;
             ShowBioDialog = true;
