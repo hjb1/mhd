@@ -57,17 +57,14 @@
                     tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
                 } catch (e) {
                 }
-                var time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                var title = d.toLocaleString('en-US', {
+                function pad(n) { return (n < 10 ? '0' : '') + n; }
+                var time = pad(d.getHours()) + ':' + pad(d.getMinutes());
+                var title = d.toLocaleDateString('en-US', {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
-                    day: 'numeric',
-                    hour: 'numeric',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    timeZoneName: 'short'
-                });
+                    day: 'numeric'
+                }) + ' ' + time + ':' + pad(d.getSeconds());
                 if (tz) {
                     title += ' — ' + tz;
                 }
