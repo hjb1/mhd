@@ -286,7 +286,10 @@ namespace mhd.Pages
         }
 
         protected Task ShowObituary(PersonnelSummary selectedPersonnel) =>
-            ShowModal(selectedPersonnel, notesTab: true);
+            ShowModal(selectedPersonnel, tab: 2);
+
+        protected Task ShowPictures(PersonnelSummary selectedPersonnel) =>
+            ShowModal(selectedPersonnel, tab: 3);
 
         protected async Task OpenSelectedAsync()
         {
@@ -297,12 +300,12 @@ namespace mhd.Pages
         }
 
         protected Task ShowModal(PersonnelSummary selectedPersonnel) =>
-            ShowModal(selectedPersonnel, notesTab: false);
+            ShowModal(selectedPersonnel, tab: 0);
 
-        private async Task ShowModal(PersonnelSummary selectedPersonnel, bool notesTab)
+        private async Task ShowModal(PersonnelSummary selectedPersonnel, int tab)
         {
             SelectedPerson = selectedPersonnel;
-            BioTab = notesTab ? 2 : 0;
+            BioTab = tab;
             bioData = null;
             Pictures = MHDService.GetPersonPictures(selectedPersonnel.PerIdentification);
             ShowEnhancedPictures = false;

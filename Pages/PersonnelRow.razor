@@ -2,14 +2,20 @@
     <span @onclick="Select">@Person.PerIdentification</span>
     <span @onclick="Select">@Person.FirstName</span>
     <span @onclick="Select">@Person.LastName</span>
-    <span>
+    <span class="bio-cell">
         @if (Person.HasBio)
         {
             <button type="button" class="btn btn-sm" @onclick="ViewBio">View Bio</button>
         }
         else
         {
-            <text>No Bio</text>
+            <span @onclick="Select">No Bio</span>
+        }
+        @if (Person.HasPictures)
+        {
+            <button type="button" class="pic-icon-btn" title="Pictures" @onclick="ViewPictures">
+                <img src="assets/icons/camera-0.png" class="icon-16" alt="Pictures" />
+            </button>
         }
     </span>
     <span>
@@ -40,12 +46,15 @@
     [Parameter] public EventCallback<PersonnelSummary> OnSelect { get; set; }
     [Parameter] public EventCallback<PersonnelSummary> OnViewBio { get; set; }
     [Parameter] public EventCallback<PersonnelSummary> OnViewObituary { get; set; }
+    [Parameter] public EventCallback<PersonnelSummary> OnViewPictures { get; set; }
 
     private Task Select() => OnSelect.InvokeAsync(Person);
 
     private Task ViewBio() => OnViewBio.InvokeAsync(Person);
 
     private Task ViewObituary() => OnViewObituary.InvokeAsync(Person);
+
+    private Task ViewPictures() => OnViewPictures.InvokeAsync(Person);
 
     private static string KiaHref(PersonnelSummary person) =>
         $"aircraft?ac={Uri.EscapeDataString(person.KiaAircraftNo)}&mission={Uri.EscapeDataString(person.KiaMissionNo)}&crew={Uri.EscapeDataString(person.PerIdentification)}";
