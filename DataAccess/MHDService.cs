@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Azure.Cosmos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -9,15 +10,19 @@ public class MHDService : IMHDService
 {
     private const string PersonnelCacheKey = "mhd:personnel";
     private const string AircraftCacheKey = "mhd:aircraft";
+    private const string PictureIndexCacheKey = "mhd:pictures";
+    private const string DefaultPicsBase = "https://mhd09192023.blob.core.windows.net/pics";
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(15);
 
     private readonly IDbContextFactory<DatabaseContext> factory;
     private readonly IMemoryCache cache;
+    private readonly IWebHostEnvironment env;
 
-    public MHDService(IDbContextFactory<DatabaseContext> factory, IMemoryCache cache)
+    public MHDService(IDbContextFactory<DatabaseContext> factory, IMemoryCache cache, IWebHostEnvironment env)
     {
         this.factory = factory;
         this.cache = cache;
+        this.env = env;
     }
 
     private static void EnsureCosmosConfigured()
@@ -126,7 +131,8 @@ public class MHDService : IMHDService
                 bioIds.Contains(d.perIdentification),
                 hasKia,
                 link.Aircraft,
-                link.Mission));
+                link.Mission,
+                HasPictures(d.perIdentification)));
             if (destination.Count == 40 || destination.Count % 500 == 0)
             {
                 progress?.Report(destination.Count);
@@ -281,5 +287,79 @@ public class MHDService : IMHDService
     {
         cache.Remove(PersonnelCacheKey);
         cache.Remove(AircraftCacheKey);
+    }
+
+    public bool HasPictures(string perIdentification) =>
+        !string.IsNullOrWhiteSpace(perIdentification) && GetPictureIndex().ContainsKey(perIdentification.Trim());
+
+    public IReadOnlyList<PersonPicture> GetPersonPictures(string perIdentification)
+    {
+        if (string.IsNullOrWhiteSpace(perIdentification))
+        {
+            return Array.Empty<PersonPicture>();
+        }
+
+        return GetPictureIndex().TryGetValue(perIdentification.Trim(), out var pictures)
+            ? pictures
+            : Array.Empty<PersonPicture>();
+    }
+
+    private Dictionary<string, IReadOnlyList<PersonPicture>> GetPictureIndex()
+    {
+        if (cache.TryGetValue(PictureIndexCacheKey, out Dictionary<string, IReadOnlyList<PersonPicture>>? cached) && cached != null)
+        {
+            return cached;
+        }
+
+        var map = new Dictionary<string, IReadOnlyList<PersonPicture>>(StringComparer.OrdinalIgnoreCase);
+        var path = Path.Combine(env.WebRootPath ?? "wwwroot", "data", "pictures.json");
+        if (File.Exists(path))
+        {
+            try
+            {
+                using var stream = File.OpenRead(path);
+                var raw = JsonSerializer.Deserialize<Dictionary<string, List<PictureRecord>>>(stream, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                var picsBase = (Environment.GetEnvironmentVariable("PICS_BASE") ?? DefaultPicsBase).TrimEnd('/');
+                if (raw != null)
+                {
+                    foreach (var pair in raw)
+                    {
+                        var pictures = (pair.Value ?? new List<PictureRecord>())
+                            .Where(p => !string.IsNullOrWhiteSpace(p.Stem))
+                            .Select(p => new PersonPicture
+                            {
+                                Kind = p.Kind ?? string.Empty,
+                                Stem = p.Stem!,
+                                Width = p.Width,
+                                Height = p.Height,
+                                BmpUrl = $"{picsBase}/bmp/{p.Stem}.bmp",
+                                EnhancedUrl = $"{picsBase}/4k/{p.Stem}.jpg"
+                            })
+                            .ToList();
+                        if (pictures.Count > 0)
+                        {
+                            map[pair.Key] = pictures;
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        cache.Set(PictureIndexCacheKey, map, TimeSpan.FromHours(6));
+        return map;
+    }
+
+    private sealed class PictureRecord
+    {
+        public string? Kind { get; set; }
+        public string? Stem { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
     }
 }

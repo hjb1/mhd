@@ -631,6 +631,45 @@ a.crew-name:visited {
     color: #000;
 }
 
+.picture-toggle {
+    margin-bottom: 8px;
+}
+
+.picture-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+}
+
+.picture-slot-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.picture-frame {
+    background: #000;
+    min-height: 120px;
+    max-height: 340px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.picture-frame img {
+    max-width: 100%;
+    max-height: 340px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+}
+
+.picture-slot-meta {
+    margin-top: 4px;
+    font-size: 11px;
+    color: #000;
+}
+
 .prop-grid {
     display: grid;
     grid-template-columns: 140px 1fr;

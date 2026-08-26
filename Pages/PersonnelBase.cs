@@ -24,6 +24,8 @@ namespace mhd.Pages
         protected List<PersonnelSummary> PersonnelList { get; set; } = new();
         protected List<PersonnelSummary> View { get; set; } = new();
         protected Bio? bioData;
+        protected IReadOnlyList<PersonPicture> Pictures { get; set; } = Array.Empty<PersonPicture>();
+        protected bool ShowEnhancedPictures { get; set; }
         protected PersonnelSummary? SelectedPerson { get; set; }
         protected bool ShowBioDialog { get; set; }
         protected bool BioLoading { get; set; }
@@ -288,7 +290,7 @@ namespace mhd.Pages
 
         protected async Task OpenSelectedAsync()
         {
-            if (SelectedPerson != null && (SelectedPerson.HasBio || HasObituary(SelectedPerson)))
+            if (SelectedPerson != null && CanOpen(SelectedPerson))
             {
                 await ShowModal(SelectedPerson);
             }
@@ -302,6 +304,8 @@ namespace mhd.Pages
             SelectedPerson = selectedPersonnel;
             BioTab = notesTab ? 2 : 0;
             bioData = null;
+            Pictures = MHDService.GetPersonPictures(selectedPersonnel.PerIdentification);
+            ShowEnhancedPictures = false;
             BioLoading = true;
             ShowBioDialog = true;
             await SafeStateHasChangedAsync();
@@ -367,6 +371,16 @@ namespace mhd.Pages
 
         protected static bool HasObituary(PersonnelSummary person) =>
             !string.IsNullOrWhiteSpace(person.ObituaryComments);
+
+        protected static bool CanOpen(PersonnelSummary person) =>
+            person.HasBio || HasObituary(person) || person.HasPictures;
+
+        protected void OnEnhancedPicturesChanged(ChangeEventArgs e)
+        {
+            ShowEnhancedPictures = e.Value is bool flag
+                ? flag
+                : string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        }
 
         protected static string Display(string? value) =>
             Bio.IsMeaningfulValue(value) ? value!.Trim() : string.Empty;

@@ -38,6 +38,9 @@
                     <li class="nav-item">
                         <button type="button" class="nav-link @(BioTab == 2 ? "active" : null)" @onclick="@(() => BioTab = 2)">Notes</button>
                     </li>
+                    <li class="nav-item">
+                        <button type="button" class="nav-link @(BioTab == 3 ? "active" : null)" @onclick="@(() => BioTab = 3)">Picture</button>
+                    </li>
                 </ul>
                 @if (BioLoading)
                 {
@@ -46,7 +49,38 @@
                 else
                 {
                 <div class="tab-content bio-sheet">
-                    @if (bioData == null && !HasObituary(SelectedPerson))
+                    @if (BioTab == 3)
+                    {
+                        @if (Pictures.Count == 0)
+                        {
+                            <p>No pictures on file for this airman.</p>
+                        }
+                        else
+                        {
+                            <label class="toolbar-check picture-toggle">
+                                <input type="checkbox" checked="@ShowEnhancedPictures" @onchange="OnEnhancedPicturesChanged" />
+                                4K enhanced
+                            </label>
+                            <div class="picture-grid">
+                                @foreach (var pic in Pictures)
+                                {
+                                    <div class="picture-slot">
+                                        <div class="picture-slot-title">@pic.Label</div>
+                                        <div class="sunken-panel picture-frame">
+                                            <img src="@(ShowEnhancedPictures ? pic.EnhancedUrl : pic.BmpUrl)"
+                                                 @key="@($"{pic.Stem}:{ShowEnhancedPictures}")"
+                                                 alt="@pic.Label"
+                                                 title="@(ShowEnhancedPictures ? "4K enhanced" : "Original BMP")"
+                                                 width="@pic.Width"
+                                                 height="@pic.Height" />
+                                        </div>
+                                        <div class="picture-slot-meta">@(ShowEnhancedPictures ? "4K enhanced JPEG" : "Original BMP") · @pic.Width×@pic.Height</div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    else if (bioData == null && !HasObituary(SelectedPerson))
                     {
                         <p>No bio data found for this airman.</p>
                     }
@@ -132,7 +166,7 @@
         <input type="checkbox" checked="@KiaOnly" @onchange="OnKiaOnlyChanged" />
         KIA only
     </label>
-    <button type="button" class="btn" disabled="@(SelectedPerson == null || (!SelectedPerson.HasBio && !HasObituary(SelectedPerson)))" @onclick="OpenSelectedAsync">Open</button>
+    <button type="button" class="btn" disabled="@(SelectedPerson == null || !CanOpen(SelectedPerson))" @onclick="OpenSelectedAsync">Open</button>
     <button type="button" class="btn" @onclick="@(() => ReloadAsync(true))">Refresh</button>
 </div>
 
