@@ -78,7 +78,8 @@ Scrollbar (only chrome & safari)
 
 */
 ::-webkit-scrollbar {
-  width: 12px;
+  width: 16px;
+  height: 16px;
 }
 ::-webkit-scrollbar-button:end:increment,::-webkit-scrollbar-button:start:decrement {
     display: block
@@ -117,8 +118,9 @@ Scrollbar (only chrome & safari)
     height: 40px;
     background-color: silver
 }
+::-webkit-scrollbar-corner,
 ::-webkit-scrollbar-corner:vertical {
-    background-color: #000
+    background-color: silver;
 }
 :-webkit-scrollbar-button:start:decrement,::-webkit-scrollbar-button:end:increment {
     display: block
@@ -128,22 +130,16 @@ Scrollbar (only chrome & safari)
 }
 ::-webkit-scrollbar-button:horizontal:increment {
     background: silver url(../assets/comboright.png) no-repeat 50%;
-    -webkit-transform: rotateX(-90deg);
-    transform: rotateX(-90deg);
-    -webkit-transform: rotateY(-90deg);
-    transform: rotateY(-90deg)
 }
 ::-webkit-scrollbar-button:horizontal:decrement,::-webkit-scrollbar-button:horizontal:increment {
-    width: 18px;
-    height: 18px;
-    margin: 1px 1px 1px 10px;
+    width: 16px;
+    height: 16px;
+    margin: 0;
     border: 1px outset #fff;
     box-shadow: 1px 1px #000
 }
 ::-webkit-scrollbar-button:horizontal:decrement {
     background: silver url(../assets/comboleft.png) no-repeat 50%;
-    transform: rotateX(180deg);
-    -webkit-transform: rotateY(180deg)
 }
 ::-webkit-scrollbar-track-piece {
     margin: 1px;
