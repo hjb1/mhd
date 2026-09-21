@@ -7,7 +7,7 @@ namespace mhd.Pages
 {
     public class AircraftBase : ComponentBase, IDisposable
     {
-        protected const int VisibleCap = 300;
+        protected const int VisibleCap = 100;
 
         [Inject]
         protected IMHDService MHDService { get; set; } = default!;
@@ -41,11 +41,13 @@ namespace mhd.Pages
         protected bool IsScanning { get; set; } = true;
         protected bool ShowFullList { get; set; }
         protected bool MissionsLoading { get; set; }
+        protected int LoadedCount { get; set; }
 
         private CancellationTokenSource? debounceCts;
         private readonly CancellationTokenSource lifetimeCts = new();
         private bool disposed;
         private string? appliedOpen;
+        private bool previewReady;
 
         protected IEnumerable<mhd.Domain.Aircraft> VisibleRows => View.Take(VisibleCap);
 
@@ -91,7 +93,16 @@ namespace mhd.Pages
             }
 
             IsScanning = true;
+            ShowFullList = false;
+            previewReady = false;
+            LoadedCount = 0;
             LoadError = null;
+            lock (aircraftList)
+            {
+                aircraftList.Clear();
+            }
+
+            View = new List<mhd.Domain.Aircraft>();
             try
             {
                 if (invalidate)
@@ -99,11 +110,41 @@ namespace mhd.Pages
                     MHDService.InvalidateListCache();
                 }
 
-                ShowFullList = false;
-                aircraftList = await MHDService.QueryAircraftAsync();
+                var progress = new Progress<int>(count =>
+                {
+                    _ = InvokeAsync(() =>
+                    {
+                        if (disposed)
+                        {
+                            return;
+                        }
+
+                        LoadedCount = count;
+                        if (LoadedCount == 0)
+                        {
+                            return;
+                        }
+
+                        IsScanning = false;
+                        if (!previewReady)
+                        {
+                            ApplyView();
+                            previewReady = true;
+                        }
+
+                        StateHasChanged();
+                    });
+                });
+
+                await MHDService.FillAircraftAsync(aircraftList, progress, lifetimeCts.Token);
                 if (disposed || lifetimeCts.IsCancellationRequested)
                 {
                     return;
+                }
+
+                lock (aircraftList)
+                {
+                    LoadedCount = aircraftList.Count;
                 }
 
                 ApplyView();
@@ -121,8 +162,13 @@ namespace mhd.Pages
 
                 Logger.LogError(ex, "Aircraft load failed");
                 LoadError = $"Could not open Aircraft. {ex.GetType().Name}: {ex.Message}";
-                aircraftList = new List<mhd.Domain.Aircraft>();
+                lock (aircraftList)
+                {
+                    aircraftList.Clear();
+                }
+
                 View = new List<mhd.Domain.Aircraft>();
+                LoadedCount = 0;
             }
             finally
             {
@@ -226,7 +272,13 @@ namespace mhd.Pages
             OpenAircraftNo = QueryString.Get(Nav, "ac") ?? OpenAircraftNo;
             OpenMissionNo = QueryString.Get(Nav, "mission") ?? OpenMissionNo;
             HighlightCrewId = QueryString.Get(Nav, "crew") ?? HighlightCrewId;
-            if (disposed || aircraftList.Count == 0 || string.IsNullOrWhiteSpace(OpenAircraftNo))
+            int loaded;
+            lock (aircraftList)
+            {
+                loaded = aircraftList.Count;
+            }
+
+            if (disposed || loaded == 0 || string.IsNullOrWhiteSpace(OpenAircraftNo))
             {
                 return;
             }
@@ -238,8 +290,12 @@ namespace mhd.Pages
             }
 
             var wanted = OpenAircraftNo.Trim();
-            var aircraft = aircraftList.FirstOrDefault(a => SameId(a.acAircraftNo, wanted))
-                ?? aircraftList.FirstOrDefault(a => SameAircraftNo(a.acAircraftNo, wanted));
+            mhd.Domain.Aircraft? aircraft;
+            lock (aircraftList)
+            {
+                aircraft = aircraftList.FirstOrDefault(a => SameId(a.acAircraftNo, wanted))
+                    ?? aircraftList.FirstOrDefault(a => SameAircraftNo(a.acAircraftNo, wanted));
+            }
             Only44th = false;
             if (aircraft == null)
             {
@@ -272,7 +328,12 @@ namespace mhd.Pages
 
         protected Task OpenMissionsByNo(string aircraftNo)
         {
-            var aircraft = aircraftList.FirstOrDefault(a => a.acAircraftNo == aircraftNo);
+            mhd.Domain.Aircraft? aircraft;
+            lock (aircraftList)
+            {
+                aircraft = aircraftList.FirstOrDefault(a => a.acAircraftNo == aircraftNo);
+            }
+
             return aircraft == null ? Task.CompletedTask : OpenMissionsSafeAsync(aircraft);
         }
 
@@ -518,7 +579,13 @@ namespace mhd.Pages
 
         private void ApplyView()
         {
-            IEnumerable<mhd.Domain.Aircraft> query = aircraftList;
+            mhd.Domain.Aircraft[] source;
+            lock (aircraftList)
+            {
+                source = aircraftList.ToArray();
+            }
+
+            IEnumerable<mhd.Domain.Aircraft> query = source;
 
             if (Only44th)
             {

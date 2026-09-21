@@ -12,7 +12,10 @@ public class MHDService : IMHDService
     private const string AircraftCacheKey = "mhd:aircraft";
     private const string PictureIndexCacheKey = "mhd:pictures";
     private const string DefaultPicsBase = "https://mhd09192023.blob.core.windows.net/pics";
+    private const int PreviewCount = 100;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(15);
+    private static readonly SemaphoreSlim PersonnelGate = new(1, 1);
+    private static readonly SemaphoreSlim AircraftGate = new(1, 1);
 
     private readonly IDbContextFactory<DatabaseContext> factory;
     private readonly IMemoryCache cache;
@@ -72,81 +75,126 @@ public class MHDService : IMHDService
     public async Task FillPersonnelAsync(List<PersonnelSummary> destination, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
     {
         EnsureCosmosConfigured();
-        if (cache.TryGetValue(PersonnelCacheKey, out List<PersonnelSummary>? cached) && cached != null)
+        if (TryCopyPersonnelCache(destination))
         {
-            destination.AddRange(cached);
-            progress?.Report(destination.Count);
             return;
         }
 
-        using var bioContext = factory.CreateDbContext();
-        using var personnelContext = factory.CreateDbContext();
-        using var crewContext = factory.CreateDbContext();
-        using var missionContext = factory.CreateDbContext();
-
-        var biosTask = bioContext.Bio.ToListAsync(cancellationToken);
-        var personnelTask = personnelContext.Personnel.ToListAsync(cancellationToken);
-        var crewTask = crewContext.MissionCrew.ToListAsync(cancellationToken);
-        var missionTask = missionContext.Mission.ToListAsync(cancellationToken);
-        await Task.WhenAll(biosTask, personnelTask, crewTask, missionTask);
-
-        var bioIds = biosTask.Result
-            .Where(Bio.HasMeaningfulContent)
-            .Select(b => b.perIdentification)
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .ToHashSet();
-        var sortieKeys = missionTask.Result
-            .Where(m => !string.IsNullOrWhiteSpace(m.acAircraftNo) && !string.IsNullOrWhiteSpace(m.misMissionNo))
-            .Select(m => $"{m.acAircraftNo}\t{m.misMissionNo}")
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var kiaLink = new Dictionary<string, (string Aircraft, string Mission, bool Confirmed)>(StringComparer.OrdinalIgnoreCase);
-        foreach (var crew in crewTask.Result)
+        await PersonnelGate.WaitAsync(cancellationToken);
+        try
         {
-            if (!CrewStatus.IsKia(crew.Status) ||
-                string.IsNullOrWhiteSpace(crew.perIdentification) ||
-                string.IsNullOrWhiteSpace(crew.acAircraftNo) ||
-                string.IsNullOrWhiteSpace(crew.misMissionNo))
+            if (TryCopyPersonnelCache(destination))
             {
-                continue;
+                return;
             }
 
-            var confirmed = sortieKeys.Contains($"{crew.acAircraftNo}\t{crew.misMissionNo}");
-            if (!kiaLink.TryGetValue(crew.perIdentification, out var existing) || (!existing.Confirmed && confirmed))
+            using var bioContext = factory.CreateDbContext();
+            using var personnelContext = factory.CreateDbContext();
+            using var crewContext = factory.CreateDbContext();
+            using var missionContext = factory.CreateDbContext();
+
+            var biosTask = bioContext.Bio.ToListAsync(cancellationToken);
+            var crewTask = crewContext.MissionCrew.ToListAsync(cancellationToken);
+            var missionTask = missionContext.Mission.ToListAsync(cancellationToken);
+            var pictures = GetPictureIndex();
+
+            await foreach (var d in personnelContext.Personnel.AsAsyncEnumerable().WithCancellation(cancellationToken))
             {
-                kiaLink[crew.perIdentification] = (crew.acAircraftNo, crew.misMissionNo, confirmed);
+                if (d.DeceasedDate == "12/30/1899")
+                {
+                    d.DeceasedDate = "";
+                }
+
+                var id = d.perIdentification ?? string.Empty;
+                var summary = new PersonnelSummary(
+                    d,
+                    bio: false,
+                    kia: false,
+                    pictures: !string.IsNullOrWhiteSpace(id) && pictures.ContainsKey(id.Trim()));
+
+                int added;
+                lock (destination)
+                {
+                    destination.Add(summary);
+                    added = destination.Count;
+                }
+
+                if (added == PreviewCount || added % 500 == 0)
+                {
+                    progress?.Report(added);
+                }
             }
+
+            try
+            {
+                await Task.WhenAll(biosTask, crewTask, missionTask);
+                var bioIds = biosTask.Result
+                    .Where(Bio.HasMeaningfulContent)
+                    .Select(b => b.perIdentification)
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .ToHashSet();
+                var sortieKeys = missionTask.Result
+                    .Where(m => !string.IsNullOrWhiteSpace(m.acAircraftNo) && !string.IsNullOrWhiteSpace(m.misMissionNo))
+                    .Select(m => $"{m.acAircraftNo}\t{m.misMissionNo}")
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var kiaLink = new Dictionary<string, (string Aircraft, string Mission, bool Confirmed)>(StringComparer.OrdinalIgnoreCase);
+                foreach (var crew in crewTask.Result)
+                {
+                    if (!CrewStatus.IsKia(crew.Status) ||
+                        string.IsNullOrWhiteSpace(crew.perIdentification) ||
+                        string.IsNullOrWhiteSpace(crew.acAircraftNo) ||
+                        string.IsNullOrWhiteSpace(crew.misMissionNo))
+                    {
+                        continue;
+                    }
+
+                    var confirmed = sortieKeys.Contains($"{crew.acAircraftNo}\t{crew.misMissionNo}");
+                    if (!kiaLink.TryGetValue(crew.perIdentification, out var existing) || (!existing.Confirmed && confirmed))
+                    {
+                        kiaLink[crew.perIdentification] = (crew.acAircraftNo, crew.misMissionNo, confirmed);
+                    }
+                }
+
+                lock (destination)
+                {
+                    foreach (var person in destination)
+                    {
+                        if (bioIds.Contains(person.PerIdentification))
+                        {
+                            person.HasBio = true;
+                        }
+
+                        if (kiaLink.TryGetValue(person.PerIdentification, out var link))
+                        {
+                            person.HasKia = true;
+                            person.KiaAircraftNo = link.Aircraft;
+                            person.KiaMissionNo = link.Mission;
+                        }
+                    }
+
+                    destination.Sort((a, b) =>
+                    {
+                        var last = string.Compare(a.LastName, b.LastName, StringComparison.OrdinalIgnoreCase);
+                        return last != 0 ? last : string.Compare(a.FirstName, b.FirstName, StringComparison.OrdinalIgnoreCase);
+                    });
+
+                    cache.Set(PersonnelCacheKey, destination.ToList(), CacheDuration);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+            }
+
+            progress?.Report(CountLocked(destination));
         }
-
-        foreach (var d in personnelTask.Result)
+        finally
         {
-            if (d.DeceasedDate == "12/30/1899")
-            {
-                d.DeceasedDate = "";
-            }
-
-            kiaLink.TryGetValue(d.perIdentification, out var link);
-            var hasKia = !string.IsNullOrEmpty(link.Aircraft) || CrewStatus.IsKiaFlag(d.perKIA);
-            destination.Add(new PersonnelSummary(
-                d,
-                bioIds.Contains(d.perIdentification),
-                hasKia,
-                link.Aircraft,
-                link.Mission,
-                HasPictures(d.perIdentification)));
-            if (destination.Count == 40 || destination.Count % 500 == 0)
-            {
-                progress?.Report(destination.Count);
-            }
+            PersonnelGate.Release();
         }
-
-        destination.Sort((a, b) =>
-        {
-            var last = string.Compare(a.LastName, b.LastName, StringComparison.OrdinalIgnoreCase);
-            return last != 0 ? last : string.Compare(a.FirstName, b.FirstName, StringComparison.OrdinalIgnoreCase);
-        });
-
-        cache.Set(PersonnelCacheKey, destination.ToList(), CacheDuration);
-        progress?.Report(destination.Count);
     }
 
     public async Task<List<Aircraft>> QueryAircraftAsync()
@@ -159,45 +207,78 @@ public class MHDService : IMHDService
     public async Task FillAircraftAsync(List<Aircraft> destination, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
     {
         EnsureCosmosConfigured();
-        if (cache.TryGetValue(AircraftCacheKey, out List<Aircraft>? cached) && cached != null)
+        if (TryCopyAircraftCache(destination))
         {
-            destination.AddRange(cached);
-            progress?.Report(destination.Count);
             return;
         }
 
-        using var aircraftContext = factory.CreateDbContext();
-        using var missionContext = factory.CreateDbContext();
-        var aircraftTask = aircraftContext.Aircraft.ToListAsync(cancellationToken);
-        var missionAircraftTask = missionContext.Mission
-            .Select(m => m.acAircraftNo)
-            .ToListAsync(cancellationToken);
-        await Task.WhenAll(aircraftTask, missionAircraftTask);
-
-        var aircraftWithMissions = missionAircraftTask.Result
-            .Where(n => !string.IsNullOrWhiteSpace(n))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var aircraft in aircraftTask.Result)
+        await AircraftGate.WaitAsync(cancellationToken);
+        try
         {
-            if (aircraft.acFinalAircraftDisposition == "Aircraft Final Disposition")
+            if (TryCopyAircraftCache(destination))
             {
-                aircraft.acFinalAircraftDisposition = "";
+                return;
             }
 
-            aircraft.HasMissions = !string.IsNullOrWhiteSpace(aircraft.acAircraftNo)
-                && aircraftWithMissions.Contains(aircraft.acAircraftNo);
+            using var aircraftContext = factory.CreateDbContext();
+            using var missionContext = factory.CreateDbContext();
+            var missionAircraftTask = missionContext.Mission
+                .Select(m => m.acAircraftNo)
+                .ToListAsync(cancellationToken);
 
-            destination.Add(aircraft);
-            if (destination.Count == 40 || destination.Count % 200 == 0)
+            await foreach (var aircraft in aircraftContext.Aircraft.AsAsyncEnumerable().WithCancellation(cancellationToken))
             {
-                progress?.Report(destination.Count);
+                if (aircraft.acFinalAircraftDisposition == "Aircraft Final Disposition")
+                {
+                    aircraft.acFinalAircraftDisposition = "";
+                }
+
+                int added;
+                lock (destination)
+                {
+                    destination.Add(aircraft);
+                    added = destination.Count;
+                }
+
+                if (added == PreviewCount || added % 200 == 0)
+                {
+                    progress?.Report(added);
+                }
             }
+
+            try
+            {
+                var missionAircraft = await missionAircraftTask;
+                var aircraftWithMissions = missionAircraft
+                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                lock (destination)
+                {
+                    foreach (var aircraft in destination)
+                    {
+                        aircraft.HasMissions = !string.IsNullOrWhiteSpace(aircraft.acAircraftNo)
+                            && aircraftWithMissions.Contains(aircraft.acAircraftNo);
+                    }
+
+                    destination.Sort((a, b) => string.Compare(a.acAircraftNo, b.acAircraftNo, StringComparison.OrdinalIgnoreCase));
+                    cache.Set(AircraftCacheKey, destination.ToList(), CacheDuration);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+            }
+
+            progress?.Report(CountLocked(destination));
         }
-
-        destination.Sort((a, b) => string.Compare(a.acAircraftNo, b.acAircraftNo, StringComparison.OrdinalIgnoreCase));
-        cache.Set(AircraftCacheKey, destination.ToList(), CacheDuration);
-        progress?.Report(destination.Count);
+        finally
+        {
+            AircraftGate.Release();
+        }
     }
 
     public async Task<Aircraft> LoadAircraftMissionCrewSummaryAsync(string aircraftNo, string? acBG = null)
@@ -287,6 +368,44 @@ public class MHDService : IMHDService
     {
         cache.Remove(PersonnelCacheKey);
         cache.Remove(AircraftCacheKey);
+    }
+
+    private bool TryCopyPersonnelCache(List<PersonnelSummary> destination)
+    {
+        if (!cache.TryGetValue(PersonnelCacheKey, out List<PersonnelSummary>? cached) || cached == null)
+        {
+            return false;
+        }
+
+        lock (destination)
+        {
+            destination.AddRange(cached);
+        }
+
+        return true;
+    }
+
+    private bool TryCopyAircraftCache(List<Aircraft> destination)
+    {
+        if (!cache.TryGetValue(AircraftCacheKey, out List<Aircraft>? cached) || cached == null)
+        {
+            return false;
+        }
+
+        lock (destination)
+        {
+            destination.AddRange(cached);
+        }
+
+        return true;
+    }
+
+    private static int CountLocked<T>(List<T> destination)
+    {
+        lock (destination)
+        {
+            return destination.Count;
+        }
     }
 
     public bool HasPictures(string perIdentification) =>

@@ -140,7 +140,7 @@ else
         </div>
             @if (IsScanning)
             {
-                <div class="empty-list">Reading Aircraft.mdb…</div>
+                <div class="empty-list">Reading Aircraft.mdb<span class="scan-dots"></span></div>
             }
             else if (View.Count == 0)
             {
@@ -173,11 +173,11 @@ else
         <span class="status-field">
             @if (IsScanning)
             {
-                <text>Reading Aircraft.mdb…</text>
+                <text>Reading Aircraft.mdb<span class="scan-dots"></span></text>
             }
-            else if (!ShowFullList && View.Count > VisibleCap)
+            else if (!ShowFullList)
             {
-                <text>@View.Count aircraft. Showing first @VisibleCap. Loading the rest…</text>
+                <text>@LoadedCount aircraft. Showing first @VisibleCap. Loading the rest<span class="scan-dots"></span></text>
             }
             else
             {

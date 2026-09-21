@@ -7,7 +7,7 @@ namespace mhd.Pages
 {
     public class PersonnelBase : ComponentBase, IDisposable
     {
-        protected const int VisibleCap = 300;
+        protected const int VisibleCap = 100;
 
         [Inject]
         protected IMHDService MHDService { get; set; } = default!;
@@ -38,12 +38,14 @@ namespace mhd.Pages
         protected int BioTab { get; set; }
         protected bool IsScanning { get; set; } = true;
         protected bool ShowFullList { get; set; }
+        protected int LoadedCount { get; set; }
 
         private CancellationTokenSource? debounceCts;
         private readonly CancellationTokenSource lifetimeCts = new();
         private bool disposed;
         private string? appliedSelect;
         private bool pendingScroll;
+        private bool previewReady;
 
         protected IEnumerable<PersonnelSummary> VisibleRows => View.Take(VisibleCap);
 
@@ -108,7 +110,16 @@ namespace mhd.Pages
             }
 
             IsScanning = true;
+            ShowFullList = false;
+            previewReady = false;
+            LoadedCount = 0;
             LoadError = null;
+            lock (PersonnelList)
+            {
+                PersonnelList.Clear();
+            }
+
+            View = new List<PersonnelSummary>();
             try
             {
                 if (invalidate)
@@ -116,11 +127,42 @@ namespace mhd.Pages
                     MHDService.InvalidateListCache();
                 }
 
-                ShowFullList = false;
-                PersonnelList = await MHDService.QueryPersonnelAsync();
+                var progress = new Progress<int>(count =>
+                {
+                    _ = InvokeAsync(() =>
+                    {
+                        if (disposed)
+                        {
+                            return;
+                        }
+
+                        LoadedCount = count;
+                        if (LoadedCount == 0)
+                        {
+                            return;
+                        }
+
+                        IsScanning = false;
+                        if (!previewReady)
+                        {
+                            ApplyView();
+                            previewReady = true;
+                            ApplyIncomingSelect();
+                        }
+
+                        StateHasChanged();
+                    });
+                });
+
+                await MHDService.FillPersonnelAsync(PersonnelList, progress, lifetimeCts.Token);
                 if (disposed || lifetimeCts.IsCancellationRequested)
                 {
                     return;
+                }
+
+                lock (PersonnelList)
+                {
+                    LoadedCount = PersonnelList.Count;
                 }
 
                 ApplyView();
@@ -138,8 +180,13 @@ namespace mhd.Pages
 
                 Logger.LogError(ex, "Personnel load failed");
                 LoadError = $"Could not open Personnel. {ex.GetType().Name}: {ex.Message}";
-                PersonnelList = new List<PersonnelSummary>();
+                lock (PersonnelList)
+                {
+                    PersonnelList.Clear();
+                }
+
                 View = new List<PersonnelSummary>();
+                LoadedCount = 0;
             }
             finally
             {
@@ -245,7 +292,13 @@ namespace mhd.Pages
         private void ApplyIncomingSelect()
         {
             SelectId = QueryString.Get(Nav, "select") ?? SelectId;
-            if (disposed || PersonnelList.Count == 0 || string.IsNullOrWhiteSpace(SelectId))
+            int loaded;
+            lock (PersonnelList)
+            {
+                loaded = PersonnelList.Count;
+            }
+
+            if (disposed || loaded == 0 || string.IsNullOrWhiteSpace(SelectId))
             {
                 return;
             }
@@ -257,8 +310,12 @@ namespace mhd.Pages
             }
 
             var wanted = SelectId.Trim();
-            var person = PersonnelList.FirstOrDefault(p =>
-                string.Equals((p.PerIdentification ?? string.Empty).Trim(), wanted, StringComparison.OrdinalIgnoreCase));
+            PersonnelSummary? person;
+            lock (PersonnelList)
+            {
+                person = PersonnelList.FirstOrDefault(p =>
+                    string.Equals((p.PerIdentification ?? string.Empty).Trim(), wanted, StringComparison.OrdinalIgnoreCase));
+            }
             BiosOnly = false;
             KiaOnly = false;
             if (person == null)
@@ -281,7 +338,12 @@ namespace mhd.Pages
 
         protected Task OpenBioById(string id)
         {
-            var person = PersonnelList.FirstOrDefault(p => p.PerIdentification == id);
+            PersonnelSummary? person;
+            lock (PersonnelList)
+            {
+                person = PersonnelList.FirstOrDefault(p => p.PerIdentification == id);
+            }
+
             return person == null ? Task.CompletedTask : ShowModal(person);
         }
 
@@ -390,7 +452,13 @@ namespace mhd.Pages
 
         private void ApplyView()
         {
-            IEnumerable<PersonnelSummary> query = PersonnelList;
+            PersonnelSummary[] source;
+            lock (PersonnelList)
+            {
+                source = PersonnelList.ToArray();
+            }
+
+            IEnumerable<PersonnelSummary> query = source;
 
             if (BiosOnly)
             {

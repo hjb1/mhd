@@ -600,6 +600,30 @@ a.crew-name:visited {
     color: #000;
 }
 
+.scan-dots {
+    display: inline-block;
+    min-width: 1.2em;
+    text-align: left;
+}
+
+.scan-dots::after {
+    content: ".";
+    animation: scan-dots 1.2s infinite;
+}
+
+@keyframes scan-dots {
+    0%, 32% { content: "."; }
+    33%, 65% { content: ".."; }
+    66%, 100% { content: "..."; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .scan-dots::after {
+        animation: none;
+        content: "...";
+    }
+}
+
 .home-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
