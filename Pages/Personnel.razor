@@ -191,7 +191,7 @@ else
         </div>
             @if (IsScanning)
             {
-                <div class="empty-list">Reading Personnel.mdb<span class="scan-dots"></span></div>
+                <div class="empty-list">Reading Personnel.mdb<span class="scan-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></div>
             }
             else if (View.Count == 0)
             {
@@ -228,11 +228,11 @@ else
         <span class="status-field">
             @if (IsScanning)
             {
-                <text>Reading Personnel.mdb<span class="scan-dots"></span></text>
+                <text>Reading Personnel.mdb<span class="scan-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></text>
             }
             else if (!ShowFullList)
             {
-                <text>@LoadedCount record(s). Showing first @VisibleCap. Loading the rest<span class="scan-dots"></span></text>
+                <text>@LoadedCount record(s). Showing first @VisibleCap. Loading the rest<span class="scan-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></text>
             }
             else
             {

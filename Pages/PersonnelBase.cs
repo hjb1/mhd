@@ -7,7 +7,7 @@ namespace mhd.Pages
 {
     public class PersonnelBase : ComponentBase, IDisposable
     {
-        protected const int VisibleCap = 100;
+        protected const int VisibleCap = 40;
 
         [Inject]
         protected IMHDService MHDService { get; set; } = default!;

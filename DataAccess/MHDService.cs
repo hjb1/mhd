@@ -12,7 +12,7 @@ public class MHDService : IMHDService
     private const string AircraftCacheKey = "mhd:aircraft";
     private const string PictureIndexCacheKey = "mhd:pictures";
     private const string DefaultPicsBase = "https://mhd09192023.blob.core.windows.net/pics";
-    private const int PreviewCount = 100;
+    private const int PreviewCount = 40;
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(15);
     private static readonly SemaphoreSlim PersonnelGate = new(1, 1);
     private static readonly SemaphoreSlim AircraftGate = new(1, 1);
@@ -88,38 +88,60 @@ public class MHDService : IMHDService
                 return;
             }
 
-            using var bioContext = factory.CreateDbContext();
             using var personnelContext = factory.CreateDbContext();
-            using var crewContext = factory.CreateDbContext();
-            using var missionContext = factory.CreateDbContext();
-
-            var biosTask = bioContext.Bio.ToListAsync(cancellationToken);
-            var crewTask = crewContext.MissionCrew.ToListAsync(cancellationToken);
-            var missionTask = missionContext.Mission.ToListAsync(cancellationToken);
             var pictures = GetPictureIndex();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            await foreach (var d in personnelContext.Personnel.AsAsyncEnumerable().WithCancellation(cancellationToken))
+            int AddPerson(Personnel d)
             {
+                var id = (d.perIdentification ?? string.Empty).Trim();
+                if (!string.IsNullOrEmpty(id) && !seen.Add(id))
+                {
+                    lock (destination)
+                    {
+                        return destination.Count;
+                    }
+                }
+
                 if (d.DeceasedDate == "12/30/1899")
                 {
                     d.DeceasedDate = "";
                 }
 
-                var id = d.perIdentification ?? string.Empty;
                 var summary = new PersonnelSummary(
                     d,
                     bio: false,
                     kia: false,
-                    pictures: !string.IsNullOrWhiteSpace(id) && pictures.ContainsKey(id.Trim()));
+                    pictures: !string.IsNullOrEmpty(id) && pictures.ContainsKey(id));
 
-                int added;
                 lock (destination)
                 {
                     destination.Add(summary);
-                    added = destination.Count;
+                    return destination.Count;
                 }
+            }
 
-                if (added == PreviewCount || added % 500 == 0)
+            var preview = await personnelContext.Personnel
+                .Take(PreviewCount)
+                .ToListAsync(cancellationToken);
+            foreach (var d in preview)
+            {
+                AddPerson(d);
+            }
+
+            progress?.Report(CountLocked(destination));
+
+            using var bioContext = factory.CreateDbContext();
+            using var crewContext = factory.CreateDbContext();
+            using var missionContext = factory.CreateDbContext();
+            var biosTask = bioContext.Bio.ToListAsync(cancellationToken);
+            var crewTask = crewContext.MissionCrew.ToListAsync(cancellationToken);
+            var missionTask = missionContext.Mission.ToListAsync(cancellationToken);
+
+            await foreach (var d in personnelContext.Personnel.AsAsyncEnumerable().WithCancellation(cancellationToken))
+            {
+                var added = AddPerson(d);
+                if (added % 200 == 0)
                 {
                     progress?.Report(added);
                 }
@@ -221,6 +243,41 @@ public class MHDService : IMHDService
             }
 
             using var aircraftContext = factory.CreateDbContext();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            int AddAircraft(Aircraft aircraft)
+            {
+                var id = (aircraft.acAircraftNo ?? string.Empty).Trim();
+                if (!string.IsNullOrEmpty(id) && !seen.Add(id))
+                {
+                    lock (destination)
+                    {
+                        return destination.Count;
+                    }
+                }
+
+                if (aircraft.acFinalAircraftDisposition == "Aircraft Final Disposition")
+                {
+                    aircraft.acFinalAircraftDisposition = "";
+                }
+
+                lock (destination)
+                {
+                    destination.Add(aircraft);
+                    return destination.Count;
+                }
+            }
+
+            var preview = await aircraftContext.Aircraft
+                .Take(PreviewCount)
+                .ToListAsync(cancellationToken);
+            foreach (var aircraft in preview)
+            {
+                AddAircraft(aircraft);
+            }
+
+            progress?.Report(CountLocked(destination));
+
             using var missionContext = factory.CreateDbContext();
             var missionAircraftTask = missionContext.Mission
                 .Select(m => m.acAircraftNo)
@@ -228,19 +285,8 @@ public class MHDService : IMHDService
 
             await foreach (var aircraft in aircraftContext.Aircraft.AsAsyncEnumerable().WithCancellation(cancellationToken))
             {
-                if (aircraft.acFinalAircraftDisposition == "Aircraft Final Disposition")
-                {
-                    aircraft.acFinalAircraftDisposition = "";
-                }
-
-                int added;
-                lock (destination)
-                {
-                    destination.Add(aircraft);
-                    added = destination.Count;
-                }
-
-                if (added == PreviewCount || added % 200 == 0)
+                var added = AddAircraft(aircraft);
+                if (added % 200 == 0)
                 {
                     progress?.Report(added);
                 }

@@ -600,27 +600,66 @@ a.crew-name:visited {
     color: #000;
 }
 
-.scan-dots {
-    display: inline-block;
-    min-width: 1.2em;
-    text-align: left;
+.scan-dots span {
+    opacity: 0;
+    -webkit-animation: scan-dot 1.2s infinite;
+    animation: scan-dot 1.2s infinite;
 }
 
-.scan-dots::after {
-    content: ".";
-    animation: scan-dots 1.2s infinite;
+.scan-dots span:nth-child(1) {
+    -webkit-animation-name: scan-dot-1;
+    animation-name: scan-dot-1;
 }
 
-@keyframes scan-dots {
-    0%, 32% { content: "."; }
-    33%, 65% { content: ".."; }
-    66%, 100% { content: "..."; }
+.scan-dots span:nth-child(2) {
+    -webkit-animation-name: scan-dot-2;
+    animation-name: scan-dot-2;
+}
+
+.scan-dots span:nth-child(3) {
+    -webkit-animation-name: scan-dot-3;
+    animation-name: scan-dot-3;
+}
+
+@-webkit-keyframes scan-dot-1 {
+    0%, 74% { opacity: 1; }
+    75%, 100% { opacity: 0; }
+}
+
+@keyframes scan-dot-1 {
+    0%, 74% { opacity: 1; }
+    75%, 100% { opacity: 0; }
+}
+
+@-webkit-keyframes scan-dot-2 {
+    0%, 24% { opacity: 0; }
+    25%, 74% { opacity: 1; }
+    75%, 100% { opacity: 0; }
+}
+
+@keyframes scan-dot-2 {
+    0%, 24% { opacity: 0; }
+    25%, 74% { opacity: 1; }
+    75%, 100% { opacity: 0; }
+}
+
+@-webkit-keyframes scan-dot-3 {
+    0%, 49% { opacity: 0; }
+    50%, 74% { opacity: 1; }
+    75%, 100% { opacity: 0; }
+}
+
+@keyframes scan-dot-3 {
+    0%, 49% { opacity: 0; }
+    50%, 74% { opacity: 1; }
+    75%, 100% { opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .scan-dots::after {
+    .scan-dots span {
+        -webkit-animation: none;
         animation: none;
-        content: "...";
+        opacity: 1;
     }
 }
 
